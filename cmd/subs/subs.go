@@ -22,9 +22,15 @@ func main() {
 	t := line[:len(line) - 1]
 
 	r := regexp.MustCompile(regexp.QuoteMeta(t))
-	loc := r.FindAllStringIndex(s, -1)
-	for i := range loc {
-		fmt.Print(loc[i][0] + 1, " ")
+	from := 0
+	for {
+		loc := r.FindStringIndex(s[from:])
+		if loc == nil {
+			break
+		}
+
+		fmt.Print(from + loc[0] + 1, " ")
+		from += loc[0] + 1
 	}
 	fmt.Println()
 } 
