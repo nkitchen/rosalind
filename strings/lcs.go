@@ -5,22 +5,119 @@
 
 package strings
 
+import "bytes"
+import "fmt"
+import "log"
 import "sort"
 
-type suffix {
-	// index of the string whose suffix this is
-	of int
-	// index of the first byte in the suffix
-	start int
+// LCS returns the longest common substring of the strings in coll.
+// It assumes that none of the strings contain the null byte '\0', 
+// or else that any null bytes are escaped somehow (e.g., replaced by "\0\0").
+func LCS(coll []string) string {
+	bufSize := 0
+	for _, s := range coll {
+		bufSize += len(s)
+	}
+	bufSize += 8 * len(coll)
+
+	// Concatenate the strings into a single buffer,
+	// appending a suffix "\0<i>\0" to each one
+	// so that no string's suffix can be a suffix of another.
+    buf := bytes.NewBuffer(make([]byte, 0, bufSize))
+
+	// Begin and end indices for each string within the buffer
+	stringRanges := make([][2]int, len(coll))
+
+	for i, s := range coll {
+		stringRanges[i][0] = buf.Len()
+		buf.WriteString(s)
+		stringRanges[i][1] = buf.Len()
+
+		buf.WriteByte(0)
+		_, err := fmt.Fprint(buf, i)
+		if err != nil {
+			log.Print(err)
+			return ""
+		}
+		buf.WriteByte(0)
+	}
+
+	sa := suffixArray(buf.Bytes())
+
+    // For the most recent suffixes from distinct strings that all share
+	// a prefix of length k, sharing[k] is the set of string indices.
+    var sharing []map[int]bool
+	var bestSuf []byte
+    var prevSuf []byte
+	for _, s := range sa {
+		whichString := findContainingRange(s, stringRanges)
+		if whichString == -1 {
+			continue
+		}
+
+		end := stringRanges[whichString][1]
+		suf := buf.Bytes()[s:end]
+		if prevSuf == nil || suf[0] != prevSuf[0] {
+			sharing = make([]map[int]bool, len(suf) + 1)
+			for k := 1; k <= len(suf); k++ {
+				sharing[k] = map[int]bool{whichString: true}
+			}
+		} else {
+			sharing[1][whichString] = true
+			if len(sharing[1]) == len(coll) && len(bestSuf) < 1 {
+				bestSuf = suf[:1]
+			}
+			j := 1
+			for ; j < len(suf) && j < len(prevSuf); j++ {
+				k := j + 1
+				if suf[j] == prevSuf[j] {
+					sharing[k][whichString] = true
+					if len(sharing[k]) == len(coll) && len(bestSuf) < k {
+						bestSuf = suf[:k]
+					}
+				} else {
+					break
+				}
+			}
+			k := j + 1
+			sharing = sharing[:k]
+			for ; k <= len(suf); k++ {
+				sharing = append(sharing, map[int]bool{whichString: true})
+			}
+		}
+		prevSuf = suf
+	}
+	return string(bestSuf)
 }
 
-// LCS returns the longest common substring of the strings in s.
-func LCS(s []string) string {
-	sa := suffixArray(s)
-	return s[sa[0].of][sa[0].start:]
+func findContainingRange(i int, ranges [][2]int) int {
+	if len(ranges) == 0 {
+		panic("No ranges")
+	}
+
+	min := 0
+	max := len(ranges) - 1
+	for min <= max {
+		if i < ranges[min][0] {
+			return -1
+		}
+		if i >= ranges[max][1] {
+			return -1
+		}
+
+		mid := (min + max) / 2
+		if i < ranges[mid][0] {
+			max = mid - 1
+		} else if i >= ranges[mid][1] {
+			min = mid + 1
+		} else {
+			return mid
+		}
+	}
+	return -1
 }
 
-func suffixArray(s []string) []suffix {
+func suffixArray(data []byte) []int {
 	// initial sorting by first byte of suffix
 	sa := sortedByFirstByte(data)
 	if len(sa) < 2 {
@@ -66,13 +163,11 @@ func suffixArray(s []string) []suffix {
 	return sa
 }
 
-func sortedByFirstByte(data []string) []suffix {
+func sortedByFirstByte(data []byte) []int {
 	// total byte counts
 	var count [256]int
-	for _, s := range data {
-		for _, b := range s {
-			count[b]++
-		}
+	for _, b := range data {
+		count[b]++
 	}
 	// make count[b] equal index of first occurence of b in sorted array
 	sum := 0
@@ -80,17 +175,7 @@ func sortedByFirstByte(data []string) []suffix {
 		count[b], sum = sum, count[b]+sum
 	}
 	// iterate through bytes, placing index into the correct spot in sa
-	totalLen := 0
-	for _, s := range data {
-		totalLen += len(s)
-	}
-	sa := make([]int, totalLen)
-	for i, s := range data {
-		for j, b := range s {
-			sa[count[b]] = suffix{i, j}
-			count[b]++
-		}
-	}
+	sa := make([]int, len(data))
 	for i, b := range data {
 		sa[count[b]] = i
 		count[b]++
@@ -98,70 +183,42 @@ func sortedByFirstByte(data []string) []suffix {
 	return sa
 }
 
-func initGroups(sa []suffix, data []string) []int {
-	a := make([]int, len(sa))
-	inv := make([][]int, len(data))
-	for i, s := range data {
-		inv[i] = a[:len(s)]
-		a = a[len(s):]
-	}
-
-	// Separate out the final suffix of each string to the start of its group.
-	// This is necessary to ensure the suffix "a" is before "aba"
-	// when using a potentially unstable sort.
-	groupByte := '\0'
-	// first non-final suffix
-	nf1 := -1
-	for i, suf := range sa {
-		b := data[suf.of][suf.start]
-		final := suf.start == len(data[suf.of]) - 1
-		if i == 0 || b != groupByte {
-			groupByte = b
-			if !final {
-				nf1 = i
-			} else {
-				nf1 = -1
-			}
-		} else if final && nf1 >= 0 {
-			sa[i], sa[nf1] = sa[nf1], sa[i]
-			inv[sa[nf1]] = nf1
-			sa[nf1] = -1 // mark it as an isolated sorted group
-
-			j := nf1 + 1
-			nf1 = -1
-			for ; j < i; j++ {
-				s := sa[j]
-				if data[s.of][s.start] != groupByte {
-					break
-				}
-				if s.start < len(data[s.of]) - 1 {
-					nf1 = j
-					break
-				}
-			}
-		}
-	}
-
-    // TODO: Fix to handle suffixes at -1
+func initGroups(sa []int, data []byte) []int {
 	// label contiguous same-letter groups with the same group number
+	inv := make([]int, len(data))
 	prevGroup := len(sa) - 1
-	suf := sa[prevGroup]
-	groupByte := data[suf.of][suf.start]
+	groupByte := data[sa[prevGroup]]
 	for i := len(sa) - 1; i >= 0; i-- {
-		suf = sa[i]
-		if b := data[suf.of][suf.start]; b < groupByte {
+		if b := data[sa[i]]; b < groupByte {
 			if prevGroup == i+1 {
-				sa[i+1] = suffix{-1, -1}
+				sa[i+1] = -1
 			}
 			groupByte = b
 			prevGroup = i
 		}
-		inv[suf.of][suf.start] = prevGroup
+		inv[sa[i]] = prevGroup
 		if prevGroup == 0 {
-			sa[0] = &suffix{-1, -1}
+			sa[0] = -1
 		}
 	}
-
+	// Separate out the final suffix to the start of its group.
+	// This is necessary to ensure the suffix "a" is before "aba"
+	// when using a potentially unstable sort.
+	lastByte := data[len(data)-1]
+	s := -1
+	for i := range sa {
+		if sa[i] >= 0 {
+			if data[sa[i]] == lastByte && s == -1 {
+				s = i
+			}
+			if sa[i] == len(sa)-1 {
+				sa[i], sa[s] = sa[s], sa[i]
+				inv[sa[s]] = s
+				sa[s] = -1 // mark it as an isolated sorted group
+				break
+			}
+		}
+	}
 	return inv
 }
 
