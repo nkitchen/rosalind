@@ -88,25 +88,25 @@ func main() {
 	}
 
 	p := 0.0
-	pow2k := 1 << uint(k)
-	for m := n; m <= pow2k; m++ {
+	pow2k := math.Pow(2, float64(k))
+	for m := float64(n); m <= pow2k; m++ {
 		q := pGen[k][1]
-		p += math.Pow(q*q, float64(m)) *
-		     math.Pow(1 - q*q, float64(pow2k - m)) *
-		     float64(choose(pow2k, m))
+		p += math.Pow(q*q, m) *
+		     math.Pow(1 - q*q, pow2k - m) *
+			 binom(pow2k, m)
 	}
 	fmt.Println(p)
 } 
 
-func choose(n, k int) int {
-	c := int64(1)
+func binom(n, k float64) float64 {
 	if k > n - k {
 		k = n - k
 	}
-	for i := 1; i <= k; i++ {
-		c *= int64(n - (k - i))
-		c /= int64(i)
+	c := float64(1)
+	for i := k; i >= 1; i-- {
+		j := k - i
+		a := (n - j) / i
+		c *= a
 	}
-	fmt.Println(n, k, c)
-	return int(c)
+	return c
 }
