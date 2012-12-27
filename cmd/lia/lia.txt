@@ -1,0 +1,15 @@
+gen 0: AaBb
+
+gen 1:
+  F(N) = P(#AaBb >= N) = ?
+  P(#AaBb >= N) = P(#!AaBb < 2^k - N)
+  P(#AaBb >= N) = P(#AaBB = N) + ... + P(#AaBb = 2^k)
+  P(#AaBb = M) = P(AaBb)^M * P(!AaBb)^(2^k-M) * choose(2^k, M)
+
+  P_k(AaBb) = P_k(Aa) * P_k(Bb)
+
+     AB    Ab    aB    ab
+  AB AABB  AABb  AaBB  AaBb*
+  Ab AABb  AAbb  AaBb* Aabb
+  aB AaBB  AaBb* aaBB  aaBb
+  ab AaBb* Aabb  aaBb  aabb
