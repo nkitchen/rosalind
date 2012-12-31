@@ -2,25 +2,27 @@ package gene
 
 import "fmt"
 
-type CodonError string 
+type TranslationError string 
 
-func (e CodonError) Error() string {
+func (e TranslationError) Error() string {
 	return string(e)
 }
 
 // Translate returns the protein string corresponding to the RNA sequence.
 func Translate(rna string) (protein string, err error) {
 	buf := make([]byte, 0, len(rna) / 3)
+	err = TranslationError("Missing stop codon")
 	for i := 0; i < len(rna); i += 3 {
 		c := rna[i:i+3]
 		a, ok := rnaCodonTable[c]
 		if ok {
 			if a == StopCode {
+				err = nil
 				break
 			}
 			buf = append(buf, a)
 		} else {
-			err = CodonError(fmt.Sprintf("Bad codon %s at position %d", c, i))
+			err = TranslationError(fmt.Sprintf("Bad codon %s at position %d", c, i))
 			break
 		}
 	}
