@@ -83,46 +83,53 @@ func reversalDist(p, q []int) int {
 	}
 
     var prioQ queue
+	visited := map[string]bool{}
 	n := node{p, skips(p), 0}
 	heap.Push(&prioQ, &n)
 	for len(prioQ) > 0 {
 		n := heap.Pop(&prioQ).(*node)
-		fmt.Println(*n)
 		if len(n.skips) == 0 {
 			return n.reversals
 		}
 
 		rev := map[[2]int]bool{}
-		inv := map[int]int{-1: -1, len(n.perm): len(n.perm)}
-		for i, x := range n.perm {
-			inv[x] = i
-		}
-		for i, a := range n.skips {
-			j := inv[a - 1]
-			if a > 0 && j < i {
+		for _, i := range n.skips {
+			for j := 0; j < i; j++ {
 				r := [2]int{j, i - 1}
 				if rev[r] {
 					continue
 				}
 				q := reverse(n.perm, j, i - 1)
+				a := make([]rune, len(q))
+				for i, x := range q {
+					a[i] = rune(x)
+				}
+				s := string(a)
+				if visited[s] {
+					continue
+				} else {
+					visited[s] = true
+				}
 				nx := node{q, skips(q), n.reversals + 1}
 				heap.Push(&prioQ, &nx)
 				rev[r] = true
 			}
-
-			var b int
-			if i > 0 {
-				b = n.perm[i - 1]
-			} else {
-				b = -1
-			}
-			j = inv[b + 1]
-			if b < len(n.perm) - 1 && j > i {
+			for j := i + 1; j < len(n.perm); j++ {
 				r := [2]int{i, j}
 				if rev[r] {
 					continue
 				}
 				q := reverse(n.perm, i, j)
+				a := make([]rune, len(q))
+				for i, x := range q {
+					a[i] = rune(x)
+				}
+				s := string(a)
+				if visited[s] {
+					continue
+				} else {
+					visited[s] = true
+				}
 				nx := node{q, skips(q), n.reversals + 1}
 				heap.Push(&prioQ, &nx)
 				rev[r] = true
