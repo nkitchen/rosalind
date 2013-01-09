@@ -60,6 +60,10 @@ type node struct {
 	reversals int
 }
 
+func (n *node) Cost() int {
+	return 2 * n.reversals + len(n.skips)
+}
+
 type queue []*node
 
 func reversalDist(p, q []int) int {
@@ -88,29 +92,27 @@ func reversalDist(p, q []int) int {
 			return n.reversals
 		}
 
-		inv := map[int]int{-1: -1, len(n.perm): len(n.perm)}
-		for i, x := range n.perm {
-			inv[x] = i
-		}
-		for i, a := range n.skips {
-			j := inv[a - 1]
-			if a > 0 && j < i {
+		rev := map[[2]int]bool{}
+		for _, i := range n.skips {
+			for j := 0; j < i; j++ {
+				r := [2]int{j, i - 1}
+				if rev[r] {
+					continue
+				}
 				q := reverse(n.perm, j, i - 1)
 				nx := node{q, skips(q), n.reversals + 1}
 				heap.Push(&prioQ, &nx)
+				rev[r] = true
 			}
-
-			var b int
-			if i > 0 {
-				b = n.perm[i - 1]
-			} else {
-				b = -1
-			}
-			j = inv[b + 1]
-			if b < len(n.perm) - 1 && j > i {
+			for j := i + 1; j < len(n.perm); j++ {
+				r := [2]int{i, j}
+				if rev[r] {
+					continue
+				}
 				q := reverse(n.perm, i, j)
 				nx := node{q, skips(q), n.reversals + 1}
 				heap.Push(&prioQ, &nx)
+				rev[r] = true
 			}
 		}
 	}
@@ -152,7 +154,15 @@ func (q *queue) Len() int {
 func (q *queue) Less(i, j int) bool {
 	u := (*q)[i]
 	v := (*q)[j]
-	return 2 * u.reversals + len(u.skips) < 2 * v.reversals + len(v.skips)
+	cu := u.Cost()
+	cv := v.Cost()
+	if cu < cv {
+		return true
+	}
+	if cu == cv {
+		return u.reversals > v.reversals
+	}
+	return false
 }
 
 func (pq *queue) Swap(i, j int) {
