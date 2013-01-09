@@ -93,8 +93,13 @@ func reversalDist(p, q []int) int {
 		}
 
 		rev := map[[2]int]bool{}
-		for _, i := range n.skips {
-			for j := 0; j < i; j++ {
+		inv := map[int]int{-1: -1, len(n.perm): len(n.perm)}
+		for i, x := range n.perm {
+			inv[x] = i
+		}
+		for i, a := range n.skips {
+			j := inv[a - 1]
+			if a > 0 && j < i {
 				r := [2]int{j, i - 1}
 				if rev[r] {
 					continue
@@ -104,7 +109,15 @@ func reversalDist(p, q []int) int {
 				heap.Push(&prioQ, &nx)
 				rev[r] = true
 			}
-			for j := i + 1; j < len(n.perm); j++ {
+
+			var b int
+			if i > 0 {
+				b = n.perm[i - 1]
+			} else {
+				b = -1
+			}
+			j = inv[b + 1]
+			if b < len(n.perm) - 1 && j > i {
 				r := [2]int{i, j}
 				if rev[r] {
 					continue
