@@ -197,6 +197,7 @@ func (q *queue) Push(x interface{}) {
 func (q *queue) Pop() interface{} {
 	n := len(*q) - 1
 	x := (*q)[n]
+	(*q)[n] = nil
 	*q = (*q)[:n]
 	return x
 }
