@@ -26,11 +26,7 @@ func (r *lineReader) ReadLine() (string, error) {
 	return line, err
 }
 
-// ReadFasta reads a single String and assumes that nothing else follows it
-// in the reader's data.
-func ReadFasta(r io.Reader) (ret String, retErr error) {
-	lr := lineReader{bufio.NewReader(r), 0}
-
+func (lr *lineReader) ReadFasta() (ret String, retErr error) {
 	newFastaError := func(s string) FastaError {
 		return FastaError(fmt.Sprintf("Line %v: %s", lr.Lineno, s))
 	}
@@ -55,18 +51,46 @@ func ReadFasta(r io.Reader) (ret String, retErr error) {
 	desc := line[1:]
 	data := []byte{}
 	for {
-		line, err := lr.ReadLine()
-
-		line = strings.TrimRight(line, "\n")
-		data = append(data, line...)
-
-		if err == io.EOF || line == "" || line[0] == '>' {
-			return String{Description: desc, Data: string(data)}, nil
+		buf, err := lr.Reader.Peek(1)
+		done := len(buf) == 0 && err == io.EOF
+		if len(buf) > 0 && (buf[0] == '\n' || buf[0] == '>') {
+			done = true
 		}
+		if done {
+			return String{Description: desc, Data: string(data)}, err
+		}
+
+		line, err := lr.ReadLine()
 		if err != nil {
 			return String{Description: desc, Data: string(data)},
 			       newFastaError(err.Error())
 		}
+
+		line = strings.TrimRight(line, "\n")
+		data = append(data, line...)
 	}
 	return
+}
+
+// ReadFasta reads a single String and assumes that nothing else follows it
+// in the reader's data.
+func ReadFasta(r io.Reader) (String, error) {
+	lr := lineReader{bufio.NewReader(r), 0}
+	return lr.ReadFasta()
+}
+
+func ReadAllFasta(r io.Reader) ([]String, error) {
+	lr := lineReader{bufio.NewReader(r), 0}
+	a := []String{}
+	for {
+		s, err := lr.ReadFasta()
+		a = append(a, s)
+		if err == io.EOF {
+			return a, nil
+		}
+		if err != nil {
+			return a, err
+		}
+	}
+	return nil, nil
 }
