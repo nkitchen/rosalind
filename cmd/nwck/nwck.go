@@ -25,9 +25,19 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		tree.Print(t)
-
 		_, _ = br.ReadString('\n')
+
+		line, err := br.ReadString('\n')
+		if err != nil {
+			log.Fatal(err)
+		}
+		labels := strings.Fields(line)
+		fmt.Print(t.Distance(labels[0], labels[1]), " ")
+
+		buf, _ := br.Peek(1)
+		if len(buf) > 0 && buf[0] == '\n' {
+			_, _ = br.ReadByte()
+		}
 	}
+	fmt.Println()
 }
