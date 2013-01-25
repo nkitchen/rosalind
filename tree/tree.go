@@ -5,7 +5,12 @@ import "io"
 
 type Node struct {
 	Label string
-	Children []*Node
+	Children []Edge
+}
+
+type Edge struct {
+	*Node
+	Weight float64
 }
 
 type treeError string
@@ -16,37 +21,37 @@ func (e treeError) Error() string {
 func ReadNewick(r io.ByteScanner) (*Node, error) {
 	t, err := readNode(r)
 	if err != nil {
-		return t, err
+		return t.Node, err
 	}
 	c, err := r.ReadByte()
 	switch {
 	case err != nil:
-		return t, err
+		return t.Node, err
 	case c == ';':
-		return t, nil
+		return t.Node, nil
 	default:
-		return t, treeError(fmt.Sprintf("Expected ';' but read '%c'", c))
+		return t.Node, treeError(fmt.Sprintf("Expected ';' but read '%c'", c))
 	}
 	return nil, treeError("Reached an unreachable line of code")
 }
 
-func readNode(r io.ByteScanner) (*Node, error) {
+func readNode(r io.ByteScanner) (Edge, error) {
 	c, err := r.ReadByte()
 	if err != nil {
-		return nil, err
+		return Edge{}, err
 	}
-	t := &Node{}
+	t := Edge{&Node{}, 0}
 	if c == '(' {
 ReadChildren:
 		for {
 			u, err := readNode(r)
 			if err != nil {
-				return nil, err
+				return Edge{}, err
 			}
 			t.Children = append(t.Children, u)
 			c, err = r.ReadByte()
 			if err != nil {
-				return nil, err
+				return Edge{}, err
 			}
 			switch c {
 			case ')':
@@ -54,23 +59,23 @@ ReadChildren:
 			case ',':
 			    c, err = r.ReadByte()
 				if err != nil {
-					return nil, err
+					return Edge{}, err
 				}
 				if c != ' ' {
 					err = r.UnreadByte()
 					if err != nil {
-						return nil, err
+						return Edge{}, err
 					}
 				}
 			default:
 				s := fmt.Sprintf("Expected ',' or ')' but read '%c'", c)
-				return nil, treeError(s)
+				return Edge{}, treeError(s)
 			}
 		}
 	} else {
 		err = r.UnreadByte()
 		if err != nil {
-			return nil, err
+			return Edge{}, err
 		}
 	}
 
@@ -79,13 +84,13 @@ ReadLabel:
 	for {
 		c, err = r.ReadByte()
 		if err != nil {
-			return nil, err
+			return Edge{}, err
 		}
 		switch c {
 		case ')', ',', ';':
 		    err = r.UnreadByte()
 			if err != nil {
-				return nil, err
+				return Edge{}, err
 			}
 			t.Label = string(label)
 			break ReadLabel
@@ -98,10 +103,10 @@ ReadLabel:
 }
 
 func Print(t *Node) {
-	printSubtree(t, "")
+	printSubtree(Edge{t, 0}, "")
 }
 
-func printSubtree(t *Node, prefix string) {
+func printSubtree(t Edge, prefix string) {
 	_ = `
 	[a]-+-[b]
 	    +-[c]-+-[d]-+-[d1]
