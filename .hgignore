@@ -1,3 +1,8 @@
 syntax: glob
 
-rosalind_*.txt
+rosalind_*.txt*
+sample.*
+
+syntax: regexp
+
+/([^/]+)/\1.(txt|out)$
