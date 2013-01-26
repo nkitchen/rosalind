@@ -5,12 +5,11 @@ package tree
 
 import "fmt"
 import "io"
-import "os"
 import "strconv"
 import "text/scanner"
 
 
-//line newick.y:13
+//line newick.y:12
 type yySymType struct {
 	yys int
 	node *Node
@@ -35,78 +34,83 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyMaxDepth = 200
 
-//line newick.y:84
+//line newick.y:85
 
 
-type newickLexer struct {
+type newickReader struct {
 	scanner.Scanner
 	Tree *Node
+	err error
 }
 
 type stringError string
 func (e stringError) Error() string { return string(e) }
 
 func ReadNewick(r io.Reader) (*Node, error) {
-	lexer := newLexer(r)
+	reader := newReader(r)
 	yyDebug = 4
-	rc := yyParse(lexer)
-	return lexer.Tree, stringError(fmt.Sprint(rc))
+	rc := yyParse(reader)
+	if rc == 0 {
+		return reader.Tree, nil
+	}
+	return nil, reader.err
 }
 
-func newLexer(r io.Reader) *newickLexer {
-	lexer := newickLexer{}
-	lexer.Scanner.Init(r)
-	lexer.Scanner.Mode = scanner.ScanIdents | scanner.ScanFloats |
-	                     scanner.ScanStrings | scanner.SkipComments
-	return &lexer
+func newReader(r io.Reader) *newickReader {
+	reader := newickReader{}
+	reader.Scanner.Init(r)
+	reader.Scanner.Mode = scanner.ScanIdents | scanner.ScanFloats |
+	                      scanner.ScanStrings | scanner.SkipComments
+	reader.Scanner.Error = func(s *scanner.Scanner, msg string) {
+		reader.err = stringError(msg)
+	}
+	return &reader
 }
 
-func (lexer *newickLexer) Lex(lval *yySymType) int {
-	c := lexer.Peek()
-	fmt.Println("Lex: c=", c)
+func (r *newickReader) Lex(lval *yySymType) int {
+	c := r.Peek()
 	if c == '\'' {
-		token, s := lexer.ScanString(c)
+		token, s := r.ScanString(c)
 		if token != STRING {
-			fmt.Fprintf(os.Stderr, "Error while reading string '%s': %v\n",
-			            s, token)
+			msg := fmt.Sprintf("Error while reading string '%s': %v\n",
+			             	   s, token)
+			r.err = stringError(msg)
 			return 0
 		}
 		lval.text = s
 		return STRING
 	}
 
-	token := lexer.Scan()
-	fmt.Println("Lex: token=", token)
+	token := r.Scan()
 	switch token {
 	case scanner.EOF:
 		return 0
 	case scanner.Ident:
-		lval.text = lexer.TokenText()
-		fmt.Println("Lex: Ident", lval.text)
+		lval.text = r.TokenText()
 		return NAME
 	case scanner.Float:
-	    f, err := strconv.ParseFloat(lexer.TokenText(), 64)
+	    f, err := strconv.ParseFloat(r.TokenText(), 64)
 		if err != nil {
 		    panic(err)
 		}
 		lval.number = f
 		return NUMBER
 	case scanner.String:
-	    lval.text = lexer.TokenText()
+	    lval.text = r.TokenText()
 		return STRING
 	}
 
 	return int(token)
 }
 
-func (lexer *newickLexer) ScanString(quote rune) (int, string) {
+func (r *newickReader) ScanString(quote rune) (int, string) {
 	buf := []rune{}
-	c := lexer.Next()
+	c := r.Next()
 	if c != quote {
 		panic(c)
 	}
 	for {
-		c = lexer.Next()
+		c = r.Next()
 		if c == scanner.EOF {
 			return int(c), string(buf)
 		}
@@ -118,8 +122,10 @@ func (lexer *newickLexer) ScanString(quote rune) (int, string) {
 	return STRING, string(buf)
 }
 
-func (lexer *newickLexer) Error(e string) {
-	fmt.Fprintln(os.Stderr, "Error: ", e)
+func (r *newickReader) Error(e string) {
+	pos := r.Pos()
+	r.err = stringError(fmt.Sprintf("%s:%v:%v: %s", pos.Filename,
+	                                pos.Line, pos.Column, e))
 }
 
 //line yacctab:1
@@ -129,7 +135,7 @@ var yyExca = []int{
 	-2, 0,
 }
 
-const yyNprod = 11
+const yyNprod = 12
 const yyPrivate = 57344
 
 var yyTokenNames []string
@@ -153,13 +159,13 @@ var yyPgo = []int{
 }
 var yyR1 = []int{
 
-	0, 1, 2, 2, 2, 3, 3, 5, 5, 4,
-	4,
+	0, 1, 2, 2, 2, 3, 3, 3, 5, 5,
+	4, 4,
 }
 var yyR2 = []int{
 
-	0, 2, 1, 4, 0, 1, 1, 1, 3, 1,
-	3,
+	0, 2, 1, 4, 0, 1, 1, 0, 1, 3,
+	1, 3,
 }
 var yyChk = []int{
 
@@ -168,8 +174,8 @@ var yyChk = []int{
 }
 var yyDef = []int{
 
-	4, -2, 0, 2, 4, 5, 6, 1, 0, 7,
-	9, 0, 4, 0, 3, 8, 10,
+	4, -2, 0, 2, 4, 5, 6, 1, 0, 8,
+	10, 7, 4, 0, 3, 9, 11,
 }
 var yyTok1 = []int{
 
@@ -413,54 +419,57 @@ yydefault:
 	switch yynt {
 
 	case 1:
-		//line newick.y:32
+		//line newick.y:31
 		{
-			// Stuffing the result into the lexer is weird,
-		// but it's the one reentrant way available.
-		yylex.(*newickLexer).Tree = yyS[yypt-1].node
+			yylex.(*newickReader).Tree = yyS[yypt-1].node
 		}
 	case 2:
-		//line newick.y:40
+		//line newick.y:37
 		{
 			yyVAL.node = &Node{Label: yyS[yypt-0].text, Children: nil}
 		}
 	case 3:
-		//line newick.y:45
+		//line newick.y:42
 		{
 			yyVAL.node = &Node{Label: yyS[yypt-0].text, Children: yyS[yypt-2].edges}
 		}
 	case 4:
-		//line newick.y:49
+		//line newick.y:46
 		{
 			yyVAL.node = &Node{}
 		}
 	case 5:
-		//line newick.y:55
+		//line newick.y:52
 		{
 			yyVAL.text = yyS[yypt-0].text
 		}
 	case 6:
-		//line newick.y:60
+		//line newick.y:57
 		{
 			yyVAL.text = yyS[yypt-0].text
 		}
 	case 7:
-		//line newick.y:65
+		//line newick.y:61
+		{
+			yyVAL.text = ""
+		}
+	case 8:
+		//line newick.y:66
 		{
 			yyVAL.edges = []Edge{yyS[yypt-0].edge}
 		}
-	case 8:
-		//line newick.y:70
+	case 9:
+		//line newick.y:71
 		{
 			yyVAL.edges = append(yyS[yypt-2].edges, yyS[yypt-0].edge)
 		}
-	case 9:
-		//line newick.y:76
+	case 10:
+		//line newick.y:77
 		{
 			yyVAL.edge = Edge{yyS[yypt-0].node, 0}
 		}
-	case 10:
-		//line newick.y:81
+	case 11:
+		//line newick.y:82
 		{
 			yyVAL.edge = Edge{yyS[yypt-2].node, yyS[yypt-0].number}
 		}

@@ -21,9 +21,10 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		fmt.Println("[[", input, "]]")
 		t, err := tree.ReadNewick(strings.NewReader(input))
-		tree.Print(t)
 		fmt.Println(err)
+		tree.Print(t)
 		if err != nil {
 			log.Fatal(err)
 		}

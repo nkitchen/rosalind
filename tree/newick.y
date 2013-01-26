@@ -4,7 +4,6 @@ package tree
 
 import "fmt"
 import "io"
-import "os"
 import "strconv"
 import "text/scanner"
 
@@ -30,9 +29,7 @@ import "text/scanner"
 tree:
 	node ';'
 	{
-		// Stuffing the result into the lexer is weird,
-		// but it's the one reentrant way available.
-		yylex.(*newickLexer).Tree = $1
+		yylex.(*newickReader).Tree = $1
 	}
 
 node:
@@ -60,6 +57,10 @@ label:
 	{
 		$$ = $1
 	}
+|
+	{
+		$$ = ""
+	}
 
 edgeSeq:
 	edge {
@@ -83,75 +84,80 @@ edge:
 	}
 %%
 
-type newickLexer struct {
+type newickReader struct {
 	scanner.Scanner
 	Tree *Node
+	err error
 }
 
 type stringError string
 func (e stringError) Error() string { return string(e) }
 
 func ReadNewick(r io.Reader) (*Node, error) {
-	lexer := newLexer(r)
+	reader := newReader(r)
 	yyDebug = 4
-	rc := yyParse(lexer)
-	return lexer.Tree, stringError(fmt.Sprint(rc))
+	rc := yyParse(reader)
+	if rc == 0 {
+		return reader.Tree, nil
+	}
+	return nil, reader.err
 }
 
-func newLexer(r io.Reader) *newickLexer {
-	lexer := newickLexer{}
-	lexer.Scanner.Init(r)
-	lexer.Scanner.Mode = scanner.ScanIdents | scanner.ScanFloats |
-	                     scanner.ScanStrings | scanner.SkipComments
-	return &lexer
+func newReader(r io.Reader) *newickReader {
+	reader := newickReader{}
+	reader.Scanner.Init(r)
+	reader.Scanner.Mode = scanner.ScanIdents | scanner.ScanFloats |
+	                      scanner.ScanStrings | scanner.SkipComments
+	reader.Scanner.Error = func(s *scanner.Scanner, msg string) {
+		reader.err = stringError(msg)
+	}
+	return &reader
 }
 
-func (lexer *newickLexer) Lex(lval *yySymType) int {
-	c := lexer.Peek()
-	fmt.Println("Lex: c=", c)
+func (r *newickReader) Lex(lval *yySymType) int {
+	c := r.Peek()
 	if c == '\'' {
-		token, s := lexer.ScanString(c)
+		token, s := r.ScanString(c)
 		if token != STRING {
-			fmt.Fprintf(os.Stderr, "Error while reading string '%s': %v\n",
-			            s, token)
+			msg := fmt.Sprintf("Error while reading string '%s': %v\n",
+			             	   s, token)
+			r.err = stringError(msg)
 			return 0
 		}
 		lval.text = s
 		return STRING
 	}
 
-	token := lexer.Scan()
-	fmt.Println("Lex: token=", token)
+	token := r.Scan()
 	switch token {
 	case scanner.EOF:
 		return 0
 	case scanner.Ident:
-		lval.text = lexer.TokenText()
-		fmt.Println("Lex: Ident", lval.text)
+		lval.text = r.TokenText()
 		return NAME
 	case scanner.Float:
-	    f, err := strconv.ParseFloat(lexer.TokenText(), 64)
+	    f, err := strconv.ParseFloat(r.TokenText(), 64)
 		if err != nil {
 		    panic(err)
 		}
 		lval.number = f
 		return NUMBER
 	case scanner.String:
-	    lval.text = lexer.TokenText()
+	    lval.text = r.TokenText()
 		return STRING
 	}
 
 	return int(token)
 }
 
-func (lexer *newickLexer) ScanString(quote rune) (int, string) {
+func (r *newickReader) ScanString(quote rune) (int, string) {
 	buf := []rune{}
-	c := lexer.Next()
+	c := r.Next()
 	if c != quote {
 		panic(c)
 	}
 	for {
-		c = lexer.Next()
+		c = r.Next()
 		if c == scanner.EOF {
 			return int(c), string(buf)
 		}
@@ -163,6 +169,8 @@ func (lexer *newickLexer) ScanString(quote rune) (int, string) {
 	return STRING, string(buf)
 }
 
-func (lexer *newickLexer) Error(e string) {
-	fmt.Fprintln(os.Stderr, "Error: ", e)
+func (r *newickReader) Error(e string) {
+	pos := r.Pos()
+	r.err = stringError(fmt.Sprintf("%s:%v:%v: %s", pos.Filename,
+	                                pos.Line, pos.Column, e))
 }
