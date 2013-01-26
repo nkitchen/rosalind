@@ -22,6 +22,8 @@ func main() {
 			log.Fatal(err)
 		}
 		t, err := tree.ReadNewick(strings.NewReader(input))
+		tree.Print(t)
+		fmt.Println(err)
 		if err != nil {
 			log.Fatal(err)
 		}

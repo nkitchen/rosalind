@@ -1,7 +1,6 @@
 package tree
 
 import "fmt"
-import "io"
 
 type Node struct {
 	Label string
@@ -11,95 +10,6 @@ type Node struct {
 type Edge struct {
 	*Node
 	Weight float64
-}
-
-type treeError string
-func (e treeError) Error() string {
-	return string(e)
-}
-
-func ReadNewick(r io.ByteScanner) (*Node, error) {
-	t, err := readNode(r)
-	if err != nil {
-		return t.Node, err
-	}
-	c, err := r.ReadByte()
-	switch {
-	case err != nil:
-		return t.Node, err
-	case c == ';':
-		return t.Node, nil
-	default:
-		return t.Node, treeError(fmt.Sprintf("Expected ';' but read '%c'", c))
-	}
-	return nil, treeError("Reached an unreachable line of code")
-}
-
-func readNode(r io.ByteScanner) (Edge, error) {
-	c, err := r.ReadByte()
-	if err != nil {
-		return Edge{}, err
-	}
-	t := Edge{&Node{}, 0}
-	if c == '(' {
-ReadChildren:
-		for {
-			u, err := readNode(r)
-			if err != nil {
-				return Edge{}, err
-			}
-			t.Children = append(t.Children, u)
-			c, err = r.ReadByte()
-			if err != nil {
-				return Edge{}, err
-			}
-			switch c {
-			case ')':
-				break ReadChildren
-			case ',':
-			    c, err = r.ReadByte()
-				if err != nil {
-					return Edge{}, err
-				}
-				if c != ' ' {
-					err = r.UnreadByte()
-					if err != nil {
-						return Edge{}, err
-					}
-				}
-			default:
-				s := fmt.Sprintf("Expected ',' or ')' but read '%c'", c)
-				return Edge{}, treeError(s)
-			}
-		}
-	} else {
-		err = r.UnreadByte()
-		if err != nil {
-			return Edge{}, err
-		}
-	}
-
-	label := []byte{}
-ReadLabel:
-	for {
-		c, err = r.ReadByte()
-		if err != nil {
-			return Edge{}, err
-		}
-		switch c {
-		case ')', ',', ';':
-		    err = r.UnreadByte()
-			if err != nil {
-				return Edge{}, err
-			}
-			t.Label = string(label)
-			break ReadLabel
-		default:
-			label = append(label, c)
-		}
-	}
-
-	return t, nil
 }
 
 func Print(t *Node) {

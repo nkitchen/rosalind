@@ -3,6 +3,8 @@ syntax: glob
 rosalind_*.txt*
 sample.*
 
+y.output
+
 syntax: regexp
 
 /([^/]+)/\1.(txt|out)$
