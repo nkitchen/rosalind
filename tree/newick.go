@@ -34,7 +34,7 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyMaxDepth = 200
 
-//line newick.y:85
+//line newick.y:100
 
 
 type newickReader struct {
@@ -48,7 +48,6 @@ func (e stringError) Error() string { return string(e) }
 
 func ReadNewick(r io.Reader) (*Node, error) {
 	reader := newReader(r)
-	yyDebug = 4
 	rc := yyParse(reader)
 	if rc == 0 {
 		return reader.Tree, nil
@@ -135,47 +134,48 @@ var yyExca = []int{
 	-2, 0,
 }
 
-const yyNprod = 12
+const yyNprod = 14
 const yyPrivate = 57344
 
 var yyTokenNames []string
 var yyStates []string
 
-const yyLast = 18
+const yyLast = 21
 
 var yyAct = []int{
 
-	9, 13, 3, 11, 12, 5, 6, 16, 4, 5,
-	6, 8, 7, 15, 14, 10, 2, 1,
+	11, 16, 5, 13, 14, 7, 8, 19, 6, 7,
+	8, 15, 9, 12, 2, 18, 17, 10, 4, 3,
+	1,
 }
 var yyPact = []int{
 
-	0, -1000, 5, -1000, 0, -1000, -1000, -1000, -6, -1000,
-	-10, 4, 0, 3, -1000, -1000, -1000,
+	0, -1000, 5, -1000, -1000, -1000, 0, -1000, -1000, -1000,
+	-6, -1000, -10, 4, 0, -1000, 3, -1000, -1000, -1000,
 }
 var yyPgo = []int{
 
-	0, 17, 15, 2, 0, 11,
+	0, 20, 13, 19, 18, 2, 0, 17, 11,
 }
 var yyR1 = []int{
 
-	0, 1, 2, 2, 2, 3, 3, 3, 5, 5,
-	4, 4,
+	0, 1, 2, 2, 3, 4, 5, 5, 5, 7,
+	7, 6, 8, 8,
 }
 var yyR2 = []int{
 
-	0, 2, 1, 4, 0, 1, 1, 0, 1, 3,
-	1, 3,
+	0, 2, 1, 1, 1, 4, 1, 1, 0, 1,
+	3, 2, 0, 2,
 }
 var yyChk = []int{
 
-	-1000, -1, -2, -3, 8, 5, 6, 7, -5, -4,
-	-2, 9, 10, 11, -3, -4, 4,
+	-1000, -1, -2, -3, -4, -5, 8, 5, 6, 7,
+	-7, -6, -2, 9, 10, -8, 11, -5, -6, 4,
 }
 var yyDef = []int{
 
-	4, -2, 0, 2, 4, 5, 6, 1, 0, 8,
-	10, 7, 4, 0, 3, 9, 11,
+	8, -2, 0, 2, 3, 4, 8, 6, 7, 1,
+	0, 9, 12, 8, 8, 11, 0, 5, 10, 13,
 }
 var yyTok1 = []int{
 
@@ -419,59 +419,69 @@ yydefault:
 	switch yynt {
 
 	case 1:
-		//line newick.y:31
+		//line newick.y:32
 		{
 			yylex.(*newickReader).Tree = yyS[yypt-1].node
 		}
 	case 2:
-		//line newick.y:37
+		//line newick.y:38
+		{
+			yyVAL.node = yyS[yypt-0].node;
+		}
+	case 3:
+		//line newick.y:43
+		{
+			yyVAL.node = yyS[yypt-0].node;
+		}
+	case 4:
+		//line newick.y:49
 		{
 			yyVAL.node = &Node{Label: yyS[yypt-0].text, Children: nil}
 		}
-	case 3:
-		//line newick.y:42
+	case 5:
+		//line newick.y:55
 		{
 			yyVAL.node = &Node{Label: yyS[yypt-0].text, Children: yyS[yypt-2].edges}
 		}
-	case 4:
-		//line newick.y:46
-		{
-			yyVAL.node = &Node{}
-		}
-	case 5:
-		//line newick.y:52
-		{
-			yyVAL.text = yyS[yypt-0].text
-		}
 	case 6:
-		//line newick.y:57
+		//line newick.y:61
 		{
 			yyVAL.text = yyS[yypt-0].text
 		}
 	case 7:
-		//line newick.y:61
+		//line newick.y:66
+		{
+			yyVAL.text = yyS[yypt-0].text
+		}
+	case 8:
+		//line newick.y:70
 		{
 			yyVAL.text = ""
 		}
-	case 8:
-		//line newick.y:66
+	case 9:
+		//line newick.y:76
 		{
 			yyVAL.edges = []Edge{yyS[yypt-0].edge}
 		}
-	case 9:
-		//line newick.y:71
+	case 10:
+		//line newick.y:81
 		{
 			yyVAL.edges = append(yyS[yypt-2].edges, yyS[yypt-0].edge)
 		}
-	case 10:
-		//line newick.y:77
-		{
-			yyVAL.edge = Edge{yyS[yypt-0].node, 0}
-		}
 	case 11:
-		//line newick.y:82
+		//line newick.y:87
 		{
-			yyVAL.edge = Edge{yyS[yypt-2].node, yyS[yypt-0].number}
+			yyVAL.edge = Edge{yyS[yypt-1].node, yyS[yypt-0].number}
+		}
+	case 12:
+		//line newick.y:92
+		{
+			yyVAL.number = 0
+		}
+	case 13:
+		//line newick.y:97
+		{
+			yyVAL.number = yyS[yypt-0].number
 		}
 	}
 	goto yystack /* stack new state and value */

@@ -17,34 +17,43 @@ import "text/scanner"
 	text string
 }
 
-%type <node>	tree node
+%type <node>	tree subtree leaf internal
 %type <text>	label
-%type <edge>	edge
-%type <edges>	edgeSeq
+%type <edge>	branch
+%type <edges>	branchSet
+%type <number>	weight
 
 %token <number>	NUMBER
 %token <text>	NAME STRING
 
 %%
 tree:
-	node ';'
+	subtree ';'
 	{
 		yylex.(*newickReader).Tree = $1
 	}
 
-node:
+subtree:
+	leaf
+	{
+		$$ = $1;
+	}
+|
+	internal
+	{
+		$$ = $1;
+	}
+
+leaf:
 	label
 	{
 		$$ = &Node{Label: $1, Children: nil}
 	}
-|
-	'(' edgeSeq ')' label
+
+internal:
+	'(' branchSet ')' label
 	{
 		$$ = &Node{Label: $4, Children: $2}
-	}
-|
-	{
-		$$ = &Node{}
 	}
 
 label:
@@ -62,25 +71,31 @@ label:
 		$$ = ""
 	}
 
-edgeSeq:
-	edge {
+branchSet:
+	branch
+	{
 		$$ = []Edge{$1}
 	}
 |
-	edgeSeq ',' edge
+	branchSet ',' branch
 	{
 		$$ = append($1, $3)
 	}
 
-edge:
-	node
+branch:
+	subtree weight
 	{
-		$$ = Edge{$1, 0}
+		$$ = Edge{$1, $2}
+	}
+
+weight:
+	{
+		$$ = 0
 	}
 |
-	node ':' NUMBER
+	':' NUMBER
 	{
-		$$ = Edge{$1, $3}
+		$$ = $2
 	}
 %%
 
@@ -95,7 +110,6 @@ func (e stringError) Error() string { return string(e) }
 
 func ReadNewick(r io.Reader) (*Node, error) {
 	reader := newReader(r)
-	yyDebug = 4
 	rc := yyParse(reader)
 	if rc == 0 {
 		return reader.Tree, nil
