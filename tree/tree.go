@@ -1,6 +1,7 @@
 package tree
 
 import "fmt"
+import "math"
 
 type Node struct {
 	Label string
@@ -57,9 +58,9 @@ func printSubtree(t Edge, prefix string) {
 }
 
 // find returns the path from a node with the given label to the root.
-func (t *Node) find(label string) []*Node {
+func (t Edge) find(label string) []Edge {
 	if t.Label == label {
-		return []*Node{t}
+		return []Edge{t}
 	}
 
 	for _, c := range t.Children {
@@ -75,8 +76,9 @@ func (t *Node) find(label string) []*Node {
 // that have the given labels.
 // It returns -1 if either of the labels cannot be found.
 func (t *Node) Distance(a, b string) int {
-	p := t.find(a)
-	q := t.find(b)
+	e := Edge{t, 0}
+	p := e.find(a)
+	q := e.find(b)
 	if len(p) == 0 || len(q) == 0 {
 		return -1
 	}
@@ -90,12 +92,37 @@ func (t *Node) Distance(a, b string) int {
 		q = q[:len(q) - 1]
 	}
 
-	if len(q) == 0 {
-		// q was a prefix of p
-		return len(p)
+	return len(q) + len(p)
+}
+
+// WeightedDistance returns the sum of the weights on the edges
+// between two nodes in the tree that have the given labels.
+// It returns +infinity if either of the labels cannot be found.
+func (t *Node) WeightedDistance(a, b string) float64 {
+	e := Edge{t, 0}
+	p := e.find(a)
+	q := e.find(b)
+	if len(p) == 0 || len(q) == 0 {
+		return math.Inf(1)
 	}
 
-	return len(q) + len(p)
+	if len(p) < len(q) {
+		p, q = q, p
+	}
+
+	for len(q) > 0 && p[len(p) - 1] == q[len(q) - 1] {
+		p = p[:len(p) - 1]
+		q = q[:len(q) - 1]
+	}
+
+	d := float64(0)
+	for _, e := range p {
+		d += e.Weight
+	}
+	for _, e := range q {
+		d += e.Weight
+	}
+	return d
 }
 
 func (t *Node) String() string {

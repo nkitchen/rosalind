@@ -24,7 +24,8 @@ import "text/scanner"
 %type <number>	weight
 
 %token <number>	NUMBER
-%token <text>	NAME STRING
+%token <text>	NAME
+%token <text>	STRING
 
 %%
 tree:
@@ -149,7 +150,7 @@ func (r *newickReader) Lex(lval *yySymType) int {
 	case scanner.Ident:
 		lval.text = r.TokenText()
 		return NAME
-	case scanner.Float:
+	case scanner.Int, scanner.Float:
 	    f, err := strconv.ParseFloat(r.TokenText(), 64)
 		if err != nil {
 		    panic(err)

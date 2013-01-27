@@ -2,7 +2,9 @@
 //line newick.y:2
 
 package tree
-
+import __yyfmt__ "fmt"
+//line newick.y:3
+		
 import "fmt"
 import "io"
 import "strconv"
@@ -34,7 +36,7 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyMaxDepth = 200
 
-//line newick.y:100
+//line newick.y:101
 
 
 type newickReader struct {
@@ -87,7 +89,7 @@ func (r *newickReader) Lex(lval *yySymType) int {
 	case scanner.Ident:
 		lval.text = r.TokenText()
 		return NAME
-	case scanner.Float:
+	case scanner.Int, scanner.Float:
 	    f, err := strconv.ParseFloat(r.TokenText(), 64)
 		if err != nil {
 		    panic(err)
@@ -208,12 +210,13 @@ type yyLexer interface {
 const yyFlag = -1000
 
 func yyTokname(c int) string {
-	if c > 0 && c <= len(yyToknames) {
-		if yyToknames[c-1] != "" {
-			return yyToknames[c-1]
+	// 4 is TOKSTART above
+	if c >= 4 && c-4 < len(yyToknames) {
+		if yyToknames[c-4] != "" {
+			return yyToknames[c-4]
 		}
 	}
-	return fmt.Sprintf("tok-%v", c)
+	return __yyfmt__.Sprintf("tok-%v", c)
 }
 
 func yyStatname(s int) string {
@@ -222,7 +225,7 @@ func yyStatname(s int) string {
 			return yyStatenames[s]
 		}
 	}
-	return fmt.Sprintf("state-%v", s)
+	return __yyfmt__.Sprintf("state-%v", s)
 }
 
 func yylex1(lex yyLexer, lval *yySymType) int {
@@ -255,7 +258,7 @@ out:
 		c = yyTok2[1] /* unknown char */
 	}
 	if yyDebug >= 3 {
-		fmt.Printf("lex %U %s\n", uint(char), yyTokname(c))
+		__yyfmt__.Printf("lex %U %s\n", uint(char), yyTokname(c))
 	}
 	return c
 }
@@ -282,7 +285,7 @@ ret1:
 yystack:
 	/* put a state and value onto the stack */
 	if yyDebug >= 4 {
-		fmt.Printf("char %v in %v\n", yyTokname(yychar), yyStatname(yystate))
+		__yyfmt__.Printf("char %v in %v\n", yyTokname(yychar), yyStatname(yystate))
 	}
 
 	yyp++
@@ -351,8 +354,8 @@ yydefault:
 			yylex.Error("syntax error")
 			Nerrs++
 			if yyDebug >= 1 {
-				fmt.Printf("%s", yyStatname(yystate))
-				fmt.Printf("saw %s\n", yyTokname(yychar))
+				__yyfmt__.Printf("%s", yyStatname(yystate))
+				__yyfmt__.Printf("saw %s\n", yyTokname(yychar))
 			}
 			fallthrough
 
@@ -371,7 +374,7 @@ yydefault:
 
 				/* the current p has no shift on "error", pop stack */
 				if yyDebug >= 2 {
-					fmt.Printf("error recovery pops state %d\n", yyS[yyp].yys)
+					__yyfmt__.Printf("error recovery pops state %d\n", yyS[yyp].yys)
 				}
 				yyp--
 			}
@@ -380,7 +383,7 @@ yydefault:
 
 		case 3: /* no shift yet; clobber input char */
 			if yyDebug >= 2 {
-				fmt.Printf("error recovery discards %s\n", yyTokname(yychar))
+				__yyfmt__.Printf("error recovery discards %s\n", yyTokname(yychar))
 			}
 			if yychar == yyEofCode {
 				goto ret1
@@ -392,7 +395,7 @@ yydefault:
 
 	/* reduction by production yyn */
 	if yyDebug >= 2 {
-		fmt.Printf("reduce %v in:\n\t%v\n", yyn, yyStatname(yystate))
+		__yyfmt__.Printf("reduce %v in:\n\t%v\n", yyn, yyStatname(yystate))
 	}
 
 	yynt := yyn
@@ -419,67 +422,67 @@ yydefault:
 	switch yynt {
 
 	case 1:
-		//line newick.y:32
+		//line newick.y:33
 		{
 			yylex.(*newickReader).Tree = yyS[yypt-1].node
 		}
 	case 2:
-		//line newick.y:38
+		//line newick.y:39
 		{
 			yyVAL.node = yyS[yypt-0].node;
 		}
 	case 3:
-		//line newick.y:43
+		//line newick.y:44
 		{
 			yyVAL.node = yyS[yypt-0].node;
 		}
 	case 4:
-		//line newick.y:49
+		//line newick.y:50
 		{
 			yyVAL.node = &Node{Label: yyS[yypt-0].text, Children: nil}
 		}
 	case 5:
-		//line newick.y:55
+		//line newick.y:56
 		{
 			yyVAL.node = &Node{Label: yyS[yypt-0].text, Children: yyS[yypt-2].edges}
 		}
 	case 6:
-		//line newick.y:61
+		//line newick.y:62
 		{
 			yyVAL.text = yyS[yypt-0].text
 		}
 	case 7:
-		//line newick.y:66
+		//line newick.y:67
 		{
 			yyVAL.text = yyS[yypt-0].text
 		}
 	case 8:
-		//line newick.y:70
+		//line newick.y:71
 		{
 			yyVAL.text = ""
 		}
 	case 9:
-		//line newick.y:76
+		//line newick.y:77
 		{
 			yyVAL.edges = []Edge{yyS[yypt-0].edge}
 		}
 	case 10:
-		//line newick.y:81
+		//line newick.y:82
 		{
 			yyVAL.edges = append(yyS[yypt-2].edges, yyS[yypt-0].edge)
 		}
 	case 11:
-		//line newick.y:87
+		//line newick.y:88
 		{
 			yyVAL.edge = Edge{yyS[yypt-1].node, yyS[yypt-0].number}
 		}
 	case 12:
-		//line newick.y:92
+		//line newick.y:93
 		{
 			yyVAL.number = 0
 		}
 	case 13:
-		//line newick.y:97
+		//line newick.y:98
 		{
 			yyVAL.number = yyS[yypt-0].number
 		}
