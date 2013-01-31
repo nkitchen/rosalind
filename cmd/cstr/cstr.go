@@ -35,7 +35,6 @@ func main() {
 func characterTable(coll []string) [][]byte {
 	tab := [][]byte{}
 
-	seen := map[string]bool{}
 	for i := 0; i < len(coll[0]); i++ {
 		m := map[byte]int{}
 		for _, s := range coll {
@@ -63,11 +62,7 @@ func characterTable(coll []string) [][]byte {
 				}
 			}
 
-			t := string(a)
-			if !seen[t] {
-				tab = append(tab, a)
-				seen[t] = true
-			}
+			tab = append(tab, a)
 		}
 	}
 	return tab
