@@ -40,6 +40,9 @@ func characterTable(coll []string) [][]byte {
 		for _, s := range coll {
 			m[s[i]] += 1
 		}
+		if len(m) < 2 {
+			continue
+		}
 		if len(m) > 2 {
 			panic("Not characterizable")
 		}
