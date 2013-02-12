@@ -53,6 +53,7 @@ func printSubtree(t Edge, prefix string) {
 			printSubtree(t.Children[i], p)
 		}
 		fmt.Print(prefix, " ", labelSpace, `  \-`)
+		p = prefix + " " + labelSpace + "    "
 		printSubtree(t.Children[i], p)
 	}
 }
