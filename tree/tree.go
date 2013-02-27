@@ -1,6 +1,7 @@
 package tree
 
 import "fmt"
+import "io"
 import "math"
 
 type Node struct {
@@ -128,4 +129,47 @@ func (t *Node) WeightedDistance(a, b string) float64 {
 
 func (t *Node) String() string {
 	return t.Label
+}
+
+func (t *Node) WriteNewick(w io.Writer) error {
+	err := t.writeNewickSubtree(w)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(w, ";")
+	return err
+}
+
+func (t *Node) writeNewickSubtree(w io.Writer) error {
+	if len(t.Children) > 0 {
+		_, err := fmt.Fprintf(w, "(")
+		if err != nil {
+			return err
+		}
+		for i, e := range t.Children {
+			if i != 0 {
+				_, err = fmt.Fprintf(w, ",")
+				if err != nil {
+					return err
+				}
+			}
+			err := e.Node.writeNewickSubtree(w)
+			if err != nil {
+				return err
+			}
+			if e.Weight != 0 {
+				_, err = fmt.Fprintf(w, ":%v", e.Weight)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		_, err = fmt.Fprintf(w, ")")
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err := fmt.Fprintf(w, "%s", t.Label)
+	return err
 }

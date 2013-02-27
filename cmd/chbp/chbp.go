@@ -12,6 +12,15 @@ type CharTable []*big.Int
 
 var big1 = big.NewInt(1)
 
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+var _ = maxInt
+
 func main() {
 	br := bufio.NewReader(os.Stdin)
 
@@ -86,13 +95,15 @@ func main() {
 		maskCoanchor := &big.Int{}
 		maskCoanchor.Lsh(big1, uint(coanchor))
 		maskRest.AndNot(maskAll, maskCoanchor)
+		maskRest.AndNot(maskRest, maskAnchor)
 		maskExcl := &big.Int{}
 		maskExcl.AndNot(maskAll, maskRest)
 		t := makeSubtree(maskRest, maskExcl, charTab, taxa)
 		nodeRoot.Children = append(nodeRoot.Children, t)
 	}
 
-	tree.Print(nodeRoot)
+	nodeRoot.WriteNewick(os.Stdout)
+	fmt.Println()
 }
 
 func equalColumns(charTab CharTable, i, j int) bool {
@@ -108,6 +119,9 @@ func equalColumns(charTab CharTable, i, j int) bool {
 // in charTab such that (a & maskIncl) == (~b & maskIncl),
 // a & maskExcl == maskExcl, and b & maskExcl == maskExcl.
 func findComplements(charTab CharTable, maskIncl, maskExcl *big.Int) (s, t int) {
+	// w := maxInt(maskIncl.BitLen(), maskExcl.BitLen())
+    // fmt.Printf("findComplements\n.incl=%0*b\n.excl=%0*b\n", w, maskIncl, w, maskExcl)
+
 	if maskIncl.BitLen() == 0 {
 		panic("Empty mask")
 	}
@@ -166,6 +180,7 @@ func findSetBit(s *big.Int, start int) int {
 
 func makeSubtree(maskIncl, maskExcl *big.Int, charTab CharTable,
                  taxa []string) tree.Edge {
+    // fmt.Printf("makeSubtree\n.incl=%b\n.excl=%b\n", maskIncl, maskExcl)
 
 	if maskIncl.BitLen() == 0 {
 		panic("Empty mask")
@@ -208,13 +223,15 @@ func makeSubtree(maskIncl, maskExcl *big.Int, charTab CharTable,
 	}
 
 	n := &tree.Node{}
+	s := i + j
 	for _, k := range []int{i, j} {
 		in := &big.Int{}
 		in.And(maskIncl, charTab[k])
 		notIn := &big.Int{}
 		notIn.Not(in)
 		out := &big.Int{}
-		out.Or(maskExcl, notIn)
+		out.And(maskIncl, charTab[s - k])
+		out.Or(out, maskExcl)
 		t := makeSubtree(in, out, charTab, taxa)
 		n.Children = append(n.Children, t)
 	}
