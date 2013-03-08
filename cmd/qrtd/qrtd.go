@@ -22,14 +22,12 @@ func main() {
 	line, _ = br.ReadString('\n')
 	t2, _ := tree.ReadNewick(strings.NewReader(line))
 
-	splits1 := phylo.Splits(t1, taxaInv)
-	fmt.Println(splits1)
 	quartets1 := phylo.Quartets(t1, taxaInv)
 	quartets2 := phylo.Quartets(t2, taxaInv)
 	fmt.Println(quartets1)
 	fmt.Println(quartets2)
 	shared := 0
-	for q := range quartets2 {
+	for q := range quartets1 {
 		if quartets2[q] {
 			shared++
 		}
