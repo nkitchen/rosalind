@@ -1,5 +1,6 @@
 package tree
 
+import "bytes"
 import "fmt"
 import "io"
 import "math"
@@ -128,10 +129,9 @@ func (t *Node) WeightedDistance(a, b string) float64 {
 }
 
 func (t *Node) String() string {
-	if t.Label != "" {
-		return t.Label
-	}
-	return fmt.Sprintf("<Node %p>", t)
+	b := &bytes.Buffer{}
+	t.WriteNewick(b)
+	return b.String()
 }
 
 func (t *Node) WriteNewick(w io.Writer) error {
