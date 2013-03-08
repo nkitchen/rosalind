@@ -128,7 +128,10 @@ func (t *Node) WeightedDistance(a, b string) float64 {
 }
 
 func (t *Node) String() string {
-	return t.Label
+	if t.Label != "" {
+		return t.Label
+	}
+	return fmt.Sprintf("<Node %p>", t)
 }
 
 func (t *Node) WriteNewick(w io.Writer) error {
