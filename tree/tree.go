@@ -134,6 +134,11 @@ func (t *Node) String() string {
 	return b.String()
 }
 
+// Edge returns a zero-weight edge for a node.
+func (t *Node) Edge() Edge {
+	return Edge{t, 0}
+}
+
 func (t *Node) WriteNewick(w io.Writer) error {
 	err := t.writeNewickSubtree(w)
 	if err != nil {

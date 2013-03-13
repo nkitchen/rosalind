@@ -22,17 +22,6 @@ func main() {
 	line, _ = br.ReadString('\n')
 	t2, _ := tree.ReadNewick(strings.NewReader(line))
 
-	quartets1 := phylo.Quartets(t1, taxaInv)
-	quartets2 := phylo.Quartets(t2, taxaInv)
-	fmt.Println(quartets1)
-	fmt.Println(quartets2)
-	shared := 0
-	for q := range quartets1 {
-		if quartets2[q] {
-			shared++
-		}
-	}
-
-	d := len(quartets1) + len(quartets2) - 2 * shared
+	d := phylo.QuartetDistance(t1, t2, taxaInv)
 	fmt.Println(d)
 } 
