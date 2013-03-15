@@ -42,28 +42,20 @@ func QuartetDistance(t1, t2 *tree.Node, taxa map[string]int) int {
 	td1 := newTreeData()
 	leaves := make([]int, len(taxa))
 	collectLeaves(t1, taxa, leaves, td1)
-	fmt.Println("leaves", td1.leaves)
 	collectSplits(t1.Edge(), taxa, td1.splits)
-	fmt.Println("splits", td1.splits)
 	collectPairs(t1, td1)
-	fmt.Println("pairs", td1.pairs)
 
 	td2 := newTreeData()
 	leaves = make([]int, len(taxa))
 	collectLeaves(t2, taxa, leaves, td2)
-	fmt.Println("leaves", td2.leaves)
 	collectSplits(t2.Edge(), taxa, td2.splits)
-	fmt.Println("splits", td2.splits)
 	collectPairs(t2, td2)
-	fmt.Println("pairs", td2.pairs)
 
 	q1 := 0
 	q2 := 0
 	shared := 0
 	for p, a1 := range td1.pairs {
-		fmt.Println("Pair", p)
 		a2, ok := td2.pairs[p]
-		fmt.Println("a1", a1, "a2", a2)
 		if !ok {
 			continue
 		}
@@ -109,7 +101,6 @@ func collectPairs(t *tree.Node, td *treeData) {
 	for _, child := range t.Children {
 		collectSubtreePairs(child, td)
 	}
-	fmt.Println("subtree pairs", td.pairs)
 
 	n := len(t.Children)
 	if n != 3 {
@@ -127,7 +118,6 @@ func collectPairs(t *tree.Node, td *treeData) {
 			if k == len(t.Children) {
 				panic("Third child not found")
 			}
-			fmt.Println("Third child:", t.Children[k].Node)
 
 			var s CharArray
 			ss, ok := td.splits[t.Children[k]]
@@ -170,54 +160,5 @@ func collectSubtreePairs(t tree.Edge, td *treeData) {
 		}
 	}
 }
-
-//func collectQuartets(t tree.Edge,
-//					 leavesAbove []int, pairsAbove []Pair,
-//					 td *treeData) {
-//	for _, pa := range pairsAbove {
-//		for _, pb := range td.lcaPairs[t.Node] {
-//			td.quartets[newQuartet(pa, pb.pair)] = true
-//		}
-//	}
-//
-//	newPairs := map[*tree.Node][]Pair{}
-//	for _, child := range t.Children {
-//		a := []Pair{}
-//		for _, x := range leavesAbove {
-//			for _, y := range td.leaves[child.Node] {
-//				a = append(a, newPair(x, y))
-//			}
-//		}
-//		newPairs[child.Node] = a
-//	}
-//			
-//	for _, child := range t.Children {
-//		if len(td.leaves[child.Node]) < 2 {
-//			continue
-//		}
-//
-//		leavesAboveChild := []int{}
-//		leavesAboveChild = append(leavesAboveChild, leavesAbove...)
-//		pairsAboveChild := []Pair{}
-//		pairsAboveChild = append(pairsAboveChild, pairsAbove...)
-//
-//		for _, other := range t.Children {
-//			if other == child {
-//				continue
-//			}
-//			leavesAboveChild = append(leavesAboveChild, td.leaves[other.Node]...)
-//			pairsAboveChild = append(pairsAboveChild, newPairs[other.Node]...)
-//			pairsAboveChild = append(pairsAboveChild, td.allPairs[other.Node]...)
-//		}
-//		for _, cp := range td.lcaPairs[t.Node] {
-//			if cp.from[0] != child.Node &&
-//			   cp.from[1] != child.Node {
-//				pairsAboveChild = append(pairsAboveChild, cp.pair)
-//		    }
-//		}
-//
-//		collectQuartets(child, leavesAboveChild, pairsAboveChild, td)
-//	}
-//}
 
 var _ = fmt.Println
