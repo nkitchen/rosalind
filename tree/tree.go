@@ -181,3 +181,31 @@ func (t *Node) writeNewickSubtree(w io.Writer) error {
 	_, err := fmt.Fprintf(w, "%s", t.Label)
 	return err
 }
+
+// SubtreeLeaves returns a map from each node to the indices of the leaves
+// contained under it.
+// The slices for all the nodes' leaves shared the same backing array,
+// so the total storage of leaves requires only O(N) space.
+func (t *Node) SubtreeLeaves(leafIndices map[string]int) map[*Node][]int {
+	leaves := make([]int, len(leafIndices))
+	result := map[*Node][]int{}
+	collectLeaves(t, leafIndices, leaves, result)
+	return result
+}
+
+func collectLeaves(t *Node, leafIndices map[string]int,
+                   collected []int, result map[*Node][]int) int {
+	n := 0
+	i, ok := leafIndices[t.Label]
+	if ok {
+		collected[0] = i
+		n++
+	}
+
+	for _, child := range t.Children {
+		n += collectLeaves(child.Node, leafIndices, collected[n:], result)
+	}
+	result[t] = collected[:n]
+	return n
+}
+
