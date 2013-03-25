@@ -16,40 +16,27 @@ func main() {
 
 	line, _ := br.ReadString('\n')
 	taxa := strings.Fields(line)
-	taxaInv := map[string]int{}
-	for i, taxon := range taxa {
-		taxaInv[taxon] = i
+
+	taxaToKeep := taxa[:size]
+	taxaMap := map[string]bool{}
+	for _, taxon := range taxaToKeep {
+		taxaMap[taxon] = true
 	}
 
 	line, _ = br.ReadString('\n')
-	t, _ := tree.ReadNewick(strings.NewReader(line))
+	t1, _ := tree.ReadNewick(strings.NewReader(line))
+	s1 := tree.CollapseUnrootedBinary(t1, taxaMap)
 
-	m := t.SubtreeLeaves(taxaInv)
-	s := subtree(t, size, m)
-	if s == nil {
-		fmt.Println("No subtree of size", size, "found")
-	} else {
-		a := m[s]
-		for _, i := range a {
-			fmt.Printf("%v ", taxa[i])
-		}
-		fmt.Println()
-		s.WriteNewick(os.Stdout)
-		fmt.Println()
-	}
-}
+	line, _ = br.ReadString('\n')
+	t2, _ := tree.ReadNewick(strings.NewReader(line))
+	s2 := tree.CollapseUnrootedBinary(t2, taxaMap)
 
-func subtree(t *tree.Node, size int, leaves map[*tree.Node][]int) *tree.Node {
-	a, ok := leaves[t]
-	if ok && len(a) == size {
-		return t
+	for _, taxon := range taxaToKeep {
+		fmt.Printf("%v ", taxon)
 	}
-
-	for _, child := range t.Children {
-		s := subtree(child.Node, size, leaves)
-		if s != nil {
-			return s
-		}
-	}
-	return nil
+	fmt.Println()
+	s1.WriteNewick(os.Stdout)
+	fmt.Println()
+	s2.WriteNewick(os.Stdout)
+	fmt.Println()
 }

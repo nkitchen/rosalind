@@ -209,3 +209,69 @@ func collectLeaves(t *Node, leafIndices map[string]int,
 	return n
 }
 
+// Collapse returns a new tree with leaves with the labels in leavesToKeep
+// and the same topology between these as in t, but with t's other leaves omitted.
+func Collapse(t *Node, leavesToKeep map[string]bool) *Node {
+	if len(t.Children) == 0 {
+		if leavesToKeep[t.Label] {
+			return &Node{t.Label, nil}
+		}
+		return nil
+	}
+
+	a := make([]Edge, 0, len(t.Children))
+	for _, child := range t.Children {
+		s := Collapse(child.Node, leavesToKeep)
+		if s != nil {
+			a = append(a, Edge{s, 0})
+		}
+	}
+
+	var r *Node
+	switch len(a) {
+	case 0:
+		r = nil
+	case 1:
+		r = a[0].Node
+	default:
+		r = &Node{"", a}
+	}
+	return r
+}
+
+// NormalUnrootedBinary returns a tree whose root has the expected structure
+// for unrooted binary trees: It's an internal node with three children
+// (unless the tree has only two nodes).
+// The tree returned shares as many nodes with t as possible without changing
+// the data in t's nodes.
+func NormalUnrootedBinary(t *Node) *Node {
+	if t.Label != "" {
+		return t
+	}
+
+	if len(t.Children) == 2 {
+		a := t.Children[0]
+		b := t.Children[1]
+		leaf1 := len(a.Children) == 0
+		leaf2 := len(b.Children) == 0
+		switch {
+		case leaf1 && leaf2:
+			return &Node{a.Label, []Edge{b}}
+		case leaf1 && !leaf2:
+			return &Node{"", append([]Edge{a}, b.Children...)}
+		case !leaf1:
+			c := append([]Edge{}, a.Children...)
+			return &Node{"", append(c, b)}
+		}
+	}
+
+	return t
+}
+
+// CollapseUnrootedBinary returns a new unrooted binary tree
+// with leaves with the labels in leavesToKeep
+// and the same topology between these as in t,
+// but with t's other leaves omitted.
+func CollapseUnrootedBinary(t *Node, leavesToKeep map[string]bool) *Node {
+	return NormalUnrootedBinary(Collapse(t, leavesToKeep))
+}
