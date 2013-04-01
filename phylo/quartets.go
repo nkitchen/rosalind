@@ -6,34 +6,81 @@ import "fmt"
 type Pair [2]int
 type Quartet [2]Pair
 
-func newPair(a, b int) Pair {
+// NewPair returns a canonical pair {a, b}.
+func NewPair(a, b int) Pair {
 	if a <= b {
 		return Pair{a, b}
 	}
 	return Pair{b, a}
 }
 
-func newQuartet(p, q Pair) Quartet {
+// NewQuartet returns a canonical quartet {a, b} | {c, d}.
+func NewQuartet(p, q Pair) Quartet {
 	if p[0] <= q[0] {
 		return Quartet{p, q}
 	}
 	return Quartet{q, p}
 }
 
+func (p1 Pair) Less(p2 Pair) bool {
+	switch {
+	case p1[0] < p2[0]:
+		return true
+	case p1[0] > p2[0]:
+		return false
+	case p1[1] < p2[1]:
+		return true
+	}
+	return false
+}
+
+func (q1 Quartet) Less(q2 Quartet) bool {
+	switch {
+	case q1[0].Less(q2[0]):
+		return true
+	case q2[0].Less(q1[0]):
+		return false
+	case q1[1].Less(q2[1]):
+	    return true
+	}
+	return false
+}
+
+type QuartetSlice []Quartet
+
+func (qs QuartetSlice) Len() int {
+	return len(qs)
+}
+
+func (qs QuartetSlice) Less(i, j int) bool {
+	return qs[i].Less(qs[j])
+}
+
+func (qs QuartetSlice) Swap(i, j int) {
+	qs[i], qs[j] = qs[j], qs[i]
+}
+
+func (q Quartet) String() string {
+	return fmt.Sprintf("%v:%v|%v:%v", q[0][0], q[0][1], q[1][0], q[1][1])
+}
+
 type treeData struct {
 	// Leaves in each subtree
 	leaves map[*tree.Node][]int
 	splits map[tree.Edge]CharArray
+	// Maps pairs to their lowest common ancestors
+	pairLCAs map[Pair]*tree.Node
 	// Maps pairs to the splits where they first appear
 	// (constructed from inverse splits for pairs at the root)
-	pairs map[Pair]CharArray
+	pairSplits map[Pair]CharArray
 }
 
 func newTreeData() *treeData {
 	td := &treeData{}
 	td.leaves = map[*tree.Node][]int{}
 	td.splits = map[tree.Edge]CharArray{}
-	td.pairs = map[Pair]CharArray{}
+	td.pairLCAs = map[Pair]*tree.Node{}
+	td.pairSplits = map[Pair]CharArray{}
 	return td
 }
 
@@ -51,32 +98,45 @@ func QuartetDistance(t1, t2 *tree.Node, taxa map[string]int) int {
 	collectSplits(t2.Edge(), taxa, td2.splits)
 	collectPairs(t2, td2)
 
-	q1 := 0
-	q2 := 0
+	q1 := binom4(len(td1.leaves[t1]))
+	q2 := binom4(len(td2.leaves[t2]))
 	shared := 0
-	for p, a1 := range td1.pairs {
-		a2, ok := td2.pairs[p]
+	for p, a1 := range td1.pairSplits {
+		a2, ok := td2.pairSplits[p]
 		if !ok {
 			continue
 		}
 		if len(a1) != len(a2) {
 			panic("Length mismatch")
 		}
-		// Increment quartet counts
-		m1 := len(a1) - a1.PopCount()
-		q1 += m1 * (m1 - 1)
-		m2 := len(a2) - a2.PopCount()
-		q2 += m2 * (m2 - 1)
-		// Find shared quartets
-		sharedAbove := 0
+		
+		fmt.Println("shared pair", p)
+		fmt.Println("a1", a1)
+		fmt.Println("a2", a2)
+		sharedLeavesAbove := 0
 		for i := range a1 {
 			if a1[i] == 0 && a2[i] == 0 {
-				sharedAbove++
+				sharedLeavesAbove++
 			}
 		}
-		shared += sharedAbove * (sharedAbove - 1)
+		fmt.Println("sharedLeavesAbove", sharedLeavesAbove)
+		shared += sharedLeavesAbove * (sharedLeavesAbove - 1) / 2
 	}
-	return q1 + q2 - 2 * shared
+	fmt.Println("QuartetDistance: q1", q1, "q2", q2, "shared", shared)
+	// We actually find each shared quartet twice, once for each pair.
+	return q1 + q2 - shared
+}
+
+// Returns n choose 4.
+func binom4(n int) int {
+	if n < 4 {
+		return 0
+	}
+	b := 1
+	for k := 0; k < 4; k++ {
+		b *= n - k
+	}
+	return b / (4 * 3 * 2)
 }
 
 // The slices for all the nodes' leaves shared the same backing array,
@@ -130,8 +190,9 @@ func collectPairs(t *tree.Node, td *treeData) {
 			b := td.leaves[t.Children[j].Node]
 			for _, x := range a {
 				for _, y := range b {
-					p := newPair(x, y)
-					td.pairs[p] = s
+					p := NewPair(x, y)
+					td.pairLCAs[p] = t
+					td.pairSplits[p] = s
 				}
 			}
 		}
@@ -153,8 +214,9 @@ func collectSubtreePairs(t tree.Edge, td *treeData) {
 					if !ok {
 						panic(fmt.Sprintf("No split found for node %v", t.Node))
 					}
-					p := newPair(x, y)
-					td.pairs[p] = s
+					p := NewPair(x, y)
+					td.pairLCAs[p] = t.Node
+					td.pairSplits[p] = s
 				}
 			}
 		}
