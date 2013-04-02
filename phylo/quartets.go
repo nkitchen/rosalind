@@ -69,25 +69,15 @@ type treeData struct {
 	subtreeLeaves map[*tree.Node][]int
 	// The leaves in the unrooted subtree on the other side of each incident edge
 	edgeLeaves map[*tree.Node][][]int
-	// Maps pairs to the first splits where they appear together
-	// Two nodes that are more than two edges apart combine to form quartets
-	// in two directions, so there may be two splits to check.
-	//
-	//     u     S
-	//      \   /
-	//       .--.
-	//      /    \
-	//     T      v
-	//
-	// Quartets may be in (u, v) x S or (u, v) x T.
-	pairSplits map[Pair][2]CharArray
+	// Maps pairs to splits where they appear together
+	pairSplits map[Pair][]CharArray
 }
 
 func newTreeData() *treeData {
 	td := &treeData{}
 	td.subtreeLeaves = map[*tree.Node][]int{}
 	td.edgeLeaves = map[*tree.Node][][]int{}
-	td.pairSplits = map[Pair][2]CharArray{}
+	td.pairSplits = map[Pair][]CharArray{}
 	return td
 }
 
@@ -119,15 +109,7 @@ func QuartetDistance(t1, t2 *tree.Node, taxa map[string]int) int {
 		fmt.Println("a2", a2)
 
 		for _, s1 := range a1 {
-			if len(s1) == 0 {
-				continue
-			}
-
 			for _, s2 := range a2 {
-				if len(s2) == 0 {
-					continue
-				}
-
 				if len(s1) != len(s2) {
 					panic("Length mismatch")
 				}
@@ -231,16 +213,13 @@ func collectPairs(td *treeData) {
 			for _, leaf := range e[j] {
 				s[leaf] = 1
 			}
+			if s.PopCount() == numTaxa - 1 {
+				continue
+			}
 			for _, x := range e[i] {
 				for _, y := range e[j] {
 					p := NewPair(x, y)
-					a := td.pairSplits[p]
-					if len(a[0]) == 0 {
-						a[0] = s
-					} else {
-						a[1] = s
-					}
-					td.pairSplits[p] = a
+					td.pairSplits[p] = append(td.pairSplits[p], s)
 				}
 			}
 		}
