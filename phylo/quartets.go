@@ -65,62 +65,83 @@ func (q Quartet) String() string {
 }
 
 type treeData struct {
-	// Leaves in each subtree
-	leaves map[*tree.Node][]int
-	splits map[tree.Edge]CharArray
-	// Maps pairs to their lowest common ancestors
-	pairLCAs map[Pair]*tree.Node
-	// Maps pairs to the splits where they first appear
-	// (constructed from inverse splits for pairs at the root)
-	pairSplits map[Pair]CharArray
+	// The leaves in each subtree (subtree with respect to the data structure)
+	subtreeLeaves map[*tree.Node][]int
+	// The leaves in the unrooted subtree on the other side of each incident edge
+	edgeLeaves map[*tree.Node][][]int
+	// Maps pairs to the first splits where they appear together
+	// Two nodes that are more than two edges apart combine to form quartets
+	// in two directions, so there may be two splits to check.
+	//
+	//     u     S
+	//      \   /
+	//       .--.
+	//      /    \
+	//     T      v
+	//
+	// Quartets may be in (u, v) x S or (u, v) x T.
+	pairSplits map[Pair][2]CharArray
 }
 
 func newTreeData() *treeData {
 	td := &treeData{}
-	td.leaves = map[*tree.Node][]int{}
-	td.splits = map[tree.Edge]CharArray{}
-	td.pairLCAs = map[Pair]*tree.Node{}
-	td.pairSplits = map[Pair]CharArray{}
+	td.subtreeLeaves = map[*tree.Node][]int{}
+	td.edgeLeaves = map[*tree.Node][][]int{}
+	td.pairSplits = map[Pair][2]CharArray{}
 	return td
 }
 
 // Assumes that taxa are only at the leaves.
 func QuartetDistance(t1, t2 *tree.Node, taxa map[string]int) int {
 	td1 := newTreeData()
-	leaves := make([]int, len(taxa))
-	collectLeaves(t1, taxa, leaves, td1)
-	collectSplits(t1.Edge(), taxa, td1.splits)
-	collectPairs(t1, td1)
+	collectSubtreeLeaves(t1, taxa, nil, td1)
+	collectEdgeLeavesBelow(td1)
+	collectEdgeLeavesAbove(t1, nil, td1)
+	collectPairs(td1)
 
 	td2 := newTreeData()
-	leaves = make([]int, len(taxa))
-	collectLeaves(t2, taxa, leaves, td2)
-	collectSplits(t2.Edge(), taxa, td2.splits)
-	collectPairs(t2, td2)
+	collectSubtreeLeaves(t2, taxa, nil, td2)
+	collectEdgeLeavesBelow(td2)
+	collectEdgeLeavesAbove(t2, nil, td2)
+	collectPairs(td2)
 
-	q1 := binom4(len(td1.leaves[t1]))
-	q2 := binom4(len(td2.leaves[t2]))
+	q1 := binom4(len(td1.subtreeLeaves[t1]))
+	q2 := binom4(len(td2.subtreeLeaves[t2]))
 	shared := 0
 	for p, a1 := range td1.pairSplits {
 		a2, ok := td2.pairSplits[p]
 		if !ok {
 			continue
 		}
-		if len(a1) != len(a2) {
-			panic("Length mismatch")
-		}
-		
+
 		fmt.Println("shared pair", p)
 		fmt.Println("a1", a1)
 		fmt.Println("a2", a2)
-		sharedLeavesAbove := 0
-		for i := range a1 {
-			if a1[i] == 0 && a2[i] == 0 {
-				sharedLeavesAbove++
+
+		for _, s1 := range a1 {
+			if len(s1) == 0 {
+				continue
+			}
+
+			for _, s2 := range a2 {
+				if len(s2) == 0 {
+					continue
+				}
+
+				if len(s1) != len(s2) {
+					panic("Length mismatch")
+				}
+		
+				sharedLeavesAbove := 0
+				for i := range s1 {
+					if s1[i] == 0 && s2[i] == 0 {
+						sharedLeavesAbove++
+					}
+				}
+				fmt.Println("sharedLeavesAbove", sharedLeavesAbove)
+				shared += sharedLeavesAbove * (sharedLeavesAbove - 1) / 2
 			}
 		}
-		fmt.Println("sharedLeavesAbove", sharedLeavesAbove)
-		shared += sharedLeavesAbove * (sharedLeavesAbove - 1) / 2
 	}
 	fmt.Println("QuartetDistance: q1", q1, "q2", q2, "shared", shared)
 	// We actually find each shared quartet twice, once for each pair.
@@ -141,8 +162,12 @@ func binom4(n int) int {
 
 // The slices for all the nodes' leaves shared the same backing array,
 // so the total storage of leaves requires only O(N) space.
-func collectLeaves(t *tree.Node, taxa map[string]int,
-                   collected []int, td *treeData) int {
+func collectSubtreeLeaves(t *tree.Node, taxa map[string]int,
+                          collected []int, td *treeData) int {
+	if collected == nil {
+		collected = make([]int, len(taxa))
+	}
+
 	n := 0
 	i, ok := taxa[t.Label]
 	if ok {
@@ -151,76 +176,74 @@ func collectLeaves(t *tree.Node, taxa map[string]int,
 	}
 
 	for _, child := range t.Children {
-		n += collectLeaves(child.Node, taxa, collected[n:], td)
+		n += collectSubtreeLeaves(child.Node, taxa, collected[n:], td)
 	}
-	td.leaves[t] = collected[:n]
+	td.subtreeLeaves[t] = collected[:n]
 	return n
 }
 
-func collectPairs(t *tree.Node, td *treeData) {
+func collectEdgeLeavesBelow(td *treeData) {
+	for t := range td.subtreeLeaves {
+		for _, child := range t.Children {
+			a := td.subtreeLeaves[child.Node]
+			td.edgeLeaves[t] = append(td.edgeLeaves[t], a)
+		}
+	}
+}
+
+func collectEdgeLeavesAbove(t *tree.Node, leaves []int, td *treeData) {
+	if len(leaves) > 0 {
+		td.edgeLeaves[t] = append(td.edgeLeaves[t], leaves)
+	}
+
 	for _, child := range t.Children {
-		collectSubtreePairs(child, td)
-	}
-
-	n := len(t.Children)
-	if n != 3 {
-		panic(fmt.Sprint("Unexpected number of child nodes:", n))
-	}
-
-	for i := 0; i < len(t.Children) - 1; i++ {
-		for j := i + 1; j < len(t.Children); j++ {
-			var k int
-			for k = range t.Children {
-				if k != i && k != j {
-					break
-				}
-			}
-			if k == len(t.Children) {
-				panic("Third child not found")
-			}
-
-			var s CharArray
-			ss, ok := td.splits[t.Children[k]]
-			if !ok {
+		a := append([]int{}, leaves...)
+		for _, other := range t.Children {
+			if other == child {
 				continue
 			}
-			s.Not(ss)
-
-			a := td.leaves[t.Children[i].Node]
-			b := td.leaves[t.Children[j].Node]
-			for _, x := range a {
-				for _, y := range b {
-					p := NewPair(x, y)
-					td.pairLCAs[p] = t
-					td.pairSplits[p] = s
-				}
-			}
+			a = append(a, td.subtreeLeaves[other.Node]...)
 		}
+		collectEdgeLeavesAbove(child.Node, a, td)
 	}
 }
 
-func collectSubtreePairs(t tree.Edge, td *treeData) {
-	for _, child := range t.Children {
-		collectSubtreePairs(child, td)
+func collectPairs(td *treeData) {
+	fmt.Println("edgeLeaves", td.edgeLeaves)
+	numTaxa := 0
+	for _, leaves := range td.subtreeLeaves {
+		if len(leaves) > numTaxa {
+			numTaxa = len(leaves)
+		}
 	}
 
-	for i := 0; i < len(t.Children) - 1; i++ {
-		for j := i + 1; j < len(t.Children); j++ {
-			a := td.leaves[t.Children[i].Node]
-			b := td.leaves[t.Children[j].Node]
-			s, ok := td.splits[t]
-			for _, x := range a {
-				for _, y := range b {
-					if !ok {
-						panic(fmt.Sprintf("No split found for node %v", t.Node))
+	for _, e := range td.edgeLeaves {
+		if len(e) != 3 {
+			continue
+		}
+
+		for i := range e {
+			j := (i + 1) % len(e)
+			s := make(CharArray, numTaxa)
+			for _, leaf := range e[i] {
+				s[leaf] = 1
+			}
+			for _, leaf := range e[j] {
+				s[leaf] = 1
+			}
+			for _, x := range e[i] {
+				for _, y := range e[j] {
+					p := NewPair(x, y)
+					a := td.pairSplits[p]
+					if len(a[0]) == 0 {
+						a[0] = s
+					} else {
+						a[1] = s
 					}
-					p := NewPair(x, y)
-					td.pairLCAs[p] = t.Node
-					td.pairSplits[p] = s
+					td.pairSplits[p] = a
 				}
 			}
 		}
 	}
+	fmt.Println("pairSplits", td.pairSplits)
 }
-
-var _ = fmt.Println

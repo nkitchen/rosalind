@@ -23,9 +23,15 @@ func main() {
 	}
 
 	line, _ = br.ReadString('\n')
-	t1, _ := tree.ReadNewick(strings.NewReader(line))
+	t1, err := tree.ReadNewick(strings.NewReader(line))
+	if err != nil {
+		panic(err)
+	}
 	line, _ = br.ReadString('\n')
-	t2, _ := tree.ReadNewick(strings.NewReader(line))
+	t2, err := tree.ReadNewick(strings.NewReader(line))
+	if err != nil {
+		panic(err)
+	}
 
 	d := phylo.QuartetDistance(t1, t2, taxaInv)
 	fmt.Println(d)
@@ -63,6 +69,7 @@ func distanceFromSplits(t1, t2 *tree.Node, taxa map[string]int) int {
 	shared := 0
 	for q := range q1 {
 		if q2[q] {
+			fmt.Println("shared quartet:", q)
 			shared++
 		}
 	}
