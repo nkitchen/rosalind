@@ -51,25 +51,12 @@ func distanceFromSplits(t1, t2 *tree.Node, taxa map[string]int) int {
 	s1 := phylo.Splits(t1, taxa)
 	s2 := phylo.Splits(t2, taxa)
 
-	fmt.Println("splits1:")
-	for _, a := range s1 {
-		fmt.Println(a)
-	}
-	fmt.Println("splits2:")
-	for _, a := range s2 {
-		fmt.Println(a)
-	}
-
 	q1 := quartetsFromSplits(s1)
 	q2 := quartetsFromSplits(s2)
-
-	fmt.Println("quartets1:", quartetSlice(q1))
-	fmt.Println("quartets2:", quartetSlice(q2))
 
 	shared := 0
 	for q := range q1 {
 		if q2[q] {
-			fmt.Println("shared quartet:", q)
 			shared++
 		}
 	}

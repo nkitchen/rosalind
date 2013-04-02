@@ -104,10 +104,6 @@ func QuartetDistance(t1, t2 *tree.Node, taxa map[string]int) int {
 			continue
 		}
 
-		fmt.Println("shared pair", p)
-		fmt.Println("a1", a1)
-		fmt.Println("a2", a2)
-
 		for _, s1 := range a1 {
 			for _, s2 := range a2 {
 				if len(s1) != len(s2) {
@@ -120,12 +116,10 @@ func QuartetDistance(t1, t2 *tree.Node, taxa map[string]int) int {
 						sharedLeavesAbove++
 					}
 				}
-				fmt.Println("sharedLeavesAbove", sharedLeavesAbove)
 				shared += sharedLeavesAbove * (sharedLeavesAbove - 1) / 2
 			}
 		}
 	}
-	fmt.Println("QuartetDistance: q1", q1, "q2", q2, "shared", shared)
 	// We actually find each shared quartet twice, once for each pair.
 	return q1 + q2 - shared
 }
@@ -191,7 +185,6 @@ func collectEdgeLeavesAbove(t *tree.Node, leaves []int, td *treeData) {
 }
 
 func collectPairs(td *treeData) {
-	fmt.Println("edgeLeaves", td.edgeLeaves)
 	numTaxa := 0
 	for _, leaves := range td.subtreeLeaves {
 		if len(leaves) > numTaxa {
@@ -224,5 +217,4 @@ func collectPairs(td *treeData) {
 			}
 		}
 	}
-	fmt.Println("pairSplits", td.pairSplits)
 }
