@@ -77,22 +77,22 @@ func quartetsFromSplits(splits []phylo.CharArray) map[phylo.Quartet]bool {
 	quartets := map[phylo.Quartet]bool{}
 
 	for _, s := range splits {
-		for a := 0; a < len(s) - 1; a++ {
-			if s[a] != 0 {
+		for a := 0; a < s.Len() - 1; a++ {
+			if s.At(a) != 0 {
 				continue
 			}
-			for b := a + 1; b < len(s); b++ {
-				if s[b] != 0 {
+			for b := a + 1; b < s.Len(); b++ {
+				if s.At(b) != 0 {
 					continue
 				}
 				p1 := phylo.NewPair(a, b)
 
-				for c := 0; c < len(s) - 1; c++ {
-					if s[c] == 0 {
+				for c := 0; c < s.Len() - 1; c++ {
+					if s.At(c) == 0 {
 						continue
 					}
-					for d := c + 1; d < len(s); d++ {
-						if s[d] == 0 {
+					for d := c + 1; d < s.Len(); d++ {
+						if s.At(d) == 0 {
 							continue
 						}
 						p2 := phylo.NewPair(c, d)

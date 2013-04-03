@@ -1,35 +1,52 @@
 package phylo
 
-type CharArray []byte
+import "math/big"
+
+type CharArray struct {
+	len int
+	data *big.Int
+}
+
+func NewCharArray(len int) CharArray {
+	return CharArray{len, big.NewInt(0)}
+}
+
+func (a CharArray) Len() int {
+	return a.len
+}
+
+func (a CharArray) At(i int) byte {
+	return byte(a.data.Bit(i))
+}
+
+func (a *CharArray) Set(i int, b byte) {
+	a.data.SetBit(a.data, i, uint(b))
+}
 
 // PopCount returns the population count of a--the number of 1's in it.
 func (a CharArray) PopCount() int {
 	n := 0
-	for _, b := range a {
-		n += int(b)
+	for i := 0; i < a.Len(); i++ {
+		n += int(a.At(i))
 	}
 	return n
 }
 
 func (c *CharArray) Or(a, b CharArray) {
-	if len(a) != len(b) {
+	if a.Len() != b.Len() {
 		panic("Length mismatch")
 	}
-	if len(*c) != len(a) {
-		*c = make(CharArray, len(a))
+	if c.Len() != a.Len() {
+		*c = NewCharArray(a.Len())
 	}
 
-	for i := range a {
-		(*c)[i] = a[i] | b[i]
-	}
+	c.data.Or(a.data, b.data)
 }
 
 func (c *CharArray) Not(a CharArray) {
-	if len(*c) != len(a) {
-		*c = make(CharArray, len(a))
+	if c.Len() != a.Len() {
+		*c = NewCharArray(a.Len())
 	}
 
-	for i := range a {
-		(*c)[i] = 1 - a[i]
-	}
+	c.data.Not(a.data)
 }

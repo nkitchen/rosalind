@@ -17,10 +17,10 @@ func Splits(t *tree.Node, taxa map[string]int) []CharArray {
 // and appends the nontrivial splits for the subtree to collected.
 func collectSplits(e tree.Edge, taxa map[string]int,
                    collected map[tree.Edge]CharArray) CharArray {
-	a := make(CharArray, len(taxa))
+	a := NewCharArray(len(taxa))
 	i, ok := taxa[e.Label]
 	if ok {
-		a[i] = 1
+		a.Set(i, 1)
 	}
     for _, child := range e.Children {
 		b := collectSplits(child, taxa, collected)

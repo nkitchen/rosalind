@@ -106,13 +106,13 @@ func QuartetDistance(t1, t2 *tree.Node, taxa map[string]int) int {
 
 		for _, s1 := range a1 {
 			for _, s2 := range a2 {
-				if len(s1) != len(s2) {
+				if s1.Len() != s2.Len() {
 					panic("Length mismatch")
 				}
 		
 				sharedLeavesAbove := 0
-				for i := range s1 {
-					if s1[i] == 0 && s2[i] == 0 {
+				for i := 0; i < s1.Len(); i++ {
+					if s1.At(i) == 0 && s2.At(i) == 0 {
 						sharedLeavesAbove++
 					}
 				}
@@ -199,12 +199,12 @@ func collectPairs(td *treeData) {
 
 		for i := range e {
 			j := (i + 1) % len(e)
-			s := make(CharArray, numTaxa)
+			s := NewCharArray(numTaxa)
 			for _, leaf := range e[i] {
-				s[leaf] = 1
+				s.Set(leaf, 1)
 			}
 			for _, leaf := range e[j] {
-				s[leaf] = 1
+				s.Set(leaf, 1)
 			}
 			if s.PopCount() == numTaxa - 1 {
 				continue
