@@ -131,7 +131,9 @@ func (t *Node) WeightedDistance(a, b string) float64 {
 func (t *Node) String() string {
 	b := &bytes.Buffer{}
 	t.WriteNewick(b)
-	return b.String()
+	s := b.String()
+	// Omit the final semicolon.
+	return s[:len(s) - 1]
 }
 
 // Edge returns a zero-weight edge for a node.

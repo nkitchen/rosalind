@@ -33,7 +33,7 @@ func main() {
 		panic(err)
 	}
 
-	d := phylo.QuartetDistance(t1, t2, taxaInv)
+	d := phylo.QuartetDistance(t1, t2, len(taxa))
 	fmt.Println(d)
 
 	if *verify {
@@ -43,6 +43,7 @@ func main() {
 			fmt.Println("ok")
 		} else {
 			fmt.Println("mismatch")
+			os.Exit(1)
 		}
 	}
 } 
