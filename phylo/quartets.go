@@ -234,14 +234,6 @@ func (i *intersector) numSharedQuartets(qs1, qs2 quartetSet) int {
 	if np != 0 {
 		nq += np * i.numSharedPairs(qs1[1], qs2[0])
 	}
-	fmt.Println("numSharedQuartets")
-	fmt.Println("   ", qs1)
-	fmt.Println("   ", qs2)
-	if nq > 0 {
-		fmt.Println("   QQQ", nq)
-	} else {
-		fmt.Println("   ", nq)
-	}
 	return nq
 }
 
@@ -272,15 +264,6 @@ func (i *intersector) numSharedPairs(a, b [2]edge) int {
 }
 
 func (i *intersector) numSharedLeaves(e1, e2 edge) int {
-	n := i.numSharedLeavesImpl(e1, e2)
-	fmt.Println("numSharedLeaves")
-	fmt.Println("   ", e1)
-	fmt.Println("   ", e2)
-	fmt.Println("   ", n)
-	return n
-}
-
-func (i *intersector) numSharedLeavesImpl(e1, e2 edge) int {
 	if len(e1.head.Children) == 0 && len(e2.head.Children) == 0 {
 		if e1.head.Label == e2.head.Label {
 			return 1
