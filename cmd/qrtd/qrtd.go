@@ -3,14 +3,17 @@ package main
 import "bufio"
 import "flag"
 import "fmt"
+import "log"
 import "os"
 import "rosalind/phylo"
 import "rosalind/tree"
+import "runtime/pprof"
 import "sort"
 import "strings"
 
 func main() {
 	verify := flag.Bool("verify", false, "Check the distance for correctness")
+	memprof := flag.String("memprof", "", "Write memory profile to this file")
 	flag.Parse()
 
 	br := bufio.NewReader(os.Stdin)
@@ -45,6 +48,15 @@ func main() {
 			fmt.Println("mismatch")
 			os.Exit(1)
 		}
+	}
+
+	if *memprof != "" {
+		f, err := os.Create(*memprof)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+		pprof.Lookup("heap").WriteTo(f, 0)
 	}
 } 
 
