@@ -10,10 +10,10 @@ import "fmt"
 import "log"
 import "sort"
 
-// LCS returns the longest common substring of the strings in coll.
+// Returns the longest common substring of the strings in coll.
 // It assumes that none of the strings contain the null byte '\0', 
 // or else that any null bytes are escaped somehow (e.g., replaced by "\0\0").
-func LCS(coll []string) string {
+func LongestCommonSubstring(coll []string) string {
 	bufSize := 0
 	for _, s := range coll {
 		bufSize += len(s)
@@ -256,4 +256,117 @@ func (x *suffixSortable) updateGroups(offset int) {
 		}
 		prev = b
 	}
+}
+
+const (
+	match = iota
+	skipFirst
+	skipSecond
+	)
+
+type lcsEntry struct {
+	// The length of the longest common subsequence found so far
+	len int
+	// How to go to the previous entry in the chain
+	// One of match, skipFirst, skipSecond
+	prevOp int
+}
+
+func LongestCommonSubsequence(s, t string) string {
+	if len(s) == 0 || len(t) == 0 {
+		return ""
+	}
+
+	a := make([][]lcsEntry, len(s))
+	for i := range a {
+		a[i] = make([]lcsEntry, len(t))
+	}
+
+	
+	len0 := 0
+	if s[0] == t[0] {
+		len0 = 1
+	}
+	a[0][0].len = len0
+
+	for i := 1; i < len(s); i++ {
+		a[i][0] = lcsEntry{len0, skipFirst}
+	}
+	for j := 1; j < len(t); j++ {
+		a[0][j] = lcsEntry{len0, skipSecond}
+	}
+
+	for i := 1; i < len(s); i++ {
+		for j := 1; j < len(t); j++ {
+			m := -1
+			var prev int
+			e := a[i - 1][j]
+			if e.len > m {
+				m = e.len
+				prev = skipFirst
+			}
+			e = a[i][j - 1]
+			if e.len > m {
+				m = e.len
+				prev = skipSecond
+			}
+
+			e = a[i - 1][j - 1]
+			if s[i] == t[j] && e.len + 1 > m {
+				m = e.len + 1
+				prev = match
+			}
+			a[i][j] = lcsEntry{m, prev}
+		}
+	}
+
+	fmt.Printf("  ")
+	for _, b := range t {
+		fmt.Printf("%c  ", b)
+	}
+	fmt.Println()
+
+	for i := range a {
+		fmt.Printf("%c ", s[i])
+
+		for j := range a[i] {
+			c := ""
+			switch a[i][j].prevOp {
+			case match:
+				c = "="
+			case skipFirst:
+				c = "^"
+			case skipSecond:
+				c = "<"
+			}
+			fmt.Printf("%s%v ", c, a[i][j].len)
+		}
+		fmt.Println()
+	}
+
+	// Extract the LCS in reverse order in order to avoid deep recursion.
+	i := len(s) - 1
+	j := len(t) - 1
+	lcs := make([]byte, 0, a[i][j].len)
+	for i >= 0 {
+		switch a[i][j].prevOp {
+		case match:
+			lcs = append(lcs, s[i])
+			i--
+			j--
+		case skipFirst:
+			i--
+		case skipSecond:
+			j--
+		}
+	}
+	
+	i = 0
+	j = len(lcs) - 1
+	for i < j {
+		lcs[i], lcs[j] = lcs[j], lcs[i]
+		i++
+		j--
+	}
+	return string(lcs)
 }
