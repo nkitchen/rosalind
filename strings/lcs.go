@@ -320,30 +320,6 @@ func LongestCommonSubsequence(s, t string) string {
 		}
 	}
 
-	fmt.Printf("  ")
-	for _, b := range t {
-		fmt.Printf("%c  ", b)
-	}
-	fmt.Println()
-
-	for i := range a {
-		fmt.Printf("%c ", s[i])
-
-		for j := range a[i] {
-			c := ""
-			switch a[i][j].prevOp {
-			case match:
-				c = "="
-			case skipFirst:
-				c = "^"
-			case skipSecond:
-				c = "<"
-			}
-			fmt.Printf("%s%v ", c, a[i][j].len)
-		}
-		fmt.Println()
-	}
-
 	// Extract the LCS in reverse order in order to avoid deep recursion.
 	i := len(s) - 1
 	j := len(t) - 1
