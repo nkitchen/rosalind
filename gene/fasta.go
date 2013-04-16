@@ -94,3 +94,21 @@ func ReadAllFasta(r io.Reader) ([]String, error) {
 	}
 	return nil, nil
 }
+
+func WriteFasta(w io.Writer, s String) error {
+	_, err := fmt.Fprintf(w, ">%s\n", s.Description)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(s.Data); i += 80 {
+		t := s.Data[i:]
+		if len(t) > 80 {
+			t = t[:80]
+		}
+		_, err = fmt.Fprintln(w, t)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
