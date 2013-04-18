@@ -19,6 +19,11 @@ var DebugEditDistance = false
 // or substitutions of single characters) needed to transform
 // one string into the other.
 func EditDistance(s, t string) int {
+	a := editMatrix(s, t)
+	return a[len(s) - 1][len(t) - 1]
+}
+
+func editMatrix(s, t string) [][]int {
 	m := len(s)
 	n := len(t)
 
@@ -64,6 +69,7 @@ func EditDistance(s, t string) int {
 		for j := range t {
 			fmt.Printf("%c  ", t[j])
 		}
+		fmt.Println()
 		for i := range a {
 			fmt.Printf("%c ", s[i])
 			for j := range a[i] {
@@ -73,7 +79,61 @@ func EditDistance(s, t string) int {
 		}
 	}
 
-	return a[m - 1][n - 1]
+	return a
+}
+
+// Returns supersequences of s and t obtained by inserting the gap symbol
+// into them such that a maximum number of bytes of s and t are at the
+// same positions.
+func Alignment(s, t string, gapSym byte) (string, string) {
+	a := editMatrix(s, t)
+
+	// We construct the supersequences in reverse to avoid deep recursion
+	// on the matrix.
+	sa := make([]byte, 0, len(s))
+	ta := make([]byte, 0, len(t))
+
+	i := len(s) - 1
+	j := len(t) - 1
+	for i >= 0 && j >= 0 {
+		switch {
+		case i > 0 && j > 0 && s[i] == t[j] && a[i][j] == a[i - 1][j - 1],
+		     i == 0 && j == 0:
+			sa = append(sa, s[i])
+			ta = append(ta, t[j])
+			i--
+			j--
+		case j > 0 && a[i][j] == a[i][j - 1] + 1:
+			sa = append(sa, gapSym)
+			ta = append(ta, t[j])
+			j--
+		case i > 0 && a[i][j] == a[i - 1][j] + 1:
+			sa = append(sa, s[i])
+			ta = append(ta, gapSym)
+			i--
+		case i > 0 && j > 0 && s[i] != t[j] && a[i][j] == a[i - 1][j - 1] + 1:
+			sa = append(sa, s[i])
+			ta = append(ta, t[j])
+			i--
+			j--
+		default:
+			panic("Unexpected case")
+		} 
+	}
+
+	reverseBytes(sa)
+	reverseBytes(ta)
+	return string(sa), string(ta)
+}
+
+func reverseBytes(a []byte) {
+	i := 0
+	j := len(a) - 1
+	for i < j {
+		a[i], a[j] = a[j], a[i]
+		i++
+		j--
+	}
 }
 
 var _ = fmt.Println
