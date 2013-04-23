@@ -65,21 +65,37 @@ func editMatrix(s, t string) [][]int {
 	}
 
 	if DebugEditDistance {
-		fmt.Print("  ")
-		for j := range t {
-			fmt.Printf("%c  ", t[j])
-		}
-		fmt.Println()
-		for i := range a {
-			fmt.Printf("%c ", s[i])
-			for j := range a[i] {
-				fmt.Printf("%2v ", a[i][j])
-			}
-			fmt.Println()
-		}
+		printMatrix(s, t, a)
 	}
 
 	return a
+}
+
+func printMatrix(s, t string, a [][]int) {
+	fmt.Print("  ")
+	if len(a[0]) == len(t) + 1 {
+		fmt.Print("    ")
+	}
+	for j := range t {
+		fmt.Printf("  %c ", t[j])
+	}
+	fmt.Println()
+	for i := range a {
+		if len(a) == len(s) + 1 {
+			if i == 0 {
+				fmt.Print("  ")
+			} else {
+				fmt.Printf("%c ", s[i - 1])
+			}
+		} else {
+			fmt.Printf("%c ", s[i])
+		}
+
+		for j := range a[i] {
+			fmt.Printf("%3v ", a[i][j])
+		}
+		fmt.Println()
+	}
 }
 
 // Returns supersequences of s and t obtained by inserting the gap symbol
@@ -134,6 +150,50 @@ func reverseBytes(a []byte) {
 		i++
 		j--
 	}
+}
+
+// Returns the maximum alignment score.
+// scoringMatrix[i][j] is the value of replacing byte i in s with byte j in t.
+// gapPenalty is the deduction from the score for each unmatched byte.
+func MaxAlignmentScore(s, t string, scoringMatrix [][]int, gapPenalty int) int {
+	m := len(s)
+	n := len(t)
+
+	a := make([][]int, m + 1)
+	for i := 0; i <= m; i++ {
+		a[i] = make([]int, n + 1)
+	}
+
+	for i := range s {
+		a[i + 1][0] = (i + 1) * gapPenalty
+	}
+	for j := range t {
+		a[0][j + 1] = (j + 1) * gapPenalty
+	}
+
+	for i := range s {
+		for j := range t {
+			c := int(s[i])
+			d := int(t[j])
+			s1 := a[i][j] + scoringMatrix[c][d]
+			s2 := a[i + 1][j] + gapPenalty
+			s3 := a[i][j + 1] + gapPenalty
+			score := s1
+			if s2 > score {
+				score = s2
+			}
+			if s3 > score {
+				score = s3
+			}
+			a[i + 1][j + 1] = score
+		}
+	}
+
+	if DebugEditDistance {
+		printMatrix(s, t, a)
+	}
+
+	return a[m][n]
 }
 
 var _ = fmt.Println
