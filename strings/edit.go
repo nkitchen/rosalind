@@ -196,4 +196,126 @@ func MaxAlignmentScore(s, t string, scoringMatrix [][]int, gapPenalty int) int {
 	return a[m][n]
 }
 
+const Gap = -1
+
+type multAlignEntry struct {
+	score int32
+	// Points to the entry from which the score is derived:
+	// If bit k is not set (decrBits & (1 << k) == 0), the kth index
+	// of the previous entry is the same as the kth index of this
+	// entry; if bit k is set, the kth index is one less.
+	decrBits int32
+}
+
+type multAligner struct {
+	strings []string
+	memo map[string]multAlignEntry
+	scoreFunc func(int16, int16) int32
+}
+
+func (aligner multAligner) Get(indices []int32) multAlignEntry {
+	key := string(indices)
+	if e, ok := aligner.memo[key]; ok {
+		return e
+	}
+
+	origin := true
+	for _, i := range indices {
+		if i > 0 {
+			origin = false
+			break
+		}
+	}
+	if origin {
+		e := multAlignEntry{0, 0}
+		aligner.memo[key] = e
+		return e
+	}
+
+	bestScore := int32(0)
+	bestDecrBits := int32(0)
+	maxDecrBits := int64(1) << uint(len(indices)) - 1
+DecrLoop:
+	for decrBits := int32(1); int64(decrBits) <= maxDecrBits; decrBits++ {
+		prevIndices := make([]int32, len(indices))
+		copy(prevIndices, indices)
+		for i := range indices {
+			if decrBits & (1 << uint(i)) != 0 {
+				if indices[i] == 0 {
+					continue DecrLoop
+				}
+				prevIndices[i]--
+			}
+		}
+
+		score := aligner.Get(prevIndices).score
+		for i := range aligner.strings {
+			var c, d int16
+			if decrBits & (1 << uint(i)) == 0 {
+				c = Gap
+			} else {
+				c = int16(aligner.strings[i][indices[i] - 1])
+			}
+			for j := i + 1; j < len(aligner.strings); j++ {
+				if decrBits & (1 << uint(j)) == 0 {
+					d = Gap
+				} else {
+					d = int16(aligner.strings[j][indices[j] - 1])
+				}
+
+				score += aligner.scoreFunc(c, d)
+			}
+		}
+		if bestDecrBits == 0 || score > bestScore {
+			bestScore = score
+			bestDecrBits = decrBits
+		}
+	}
+
+	e := multAlignEntry{bestScore, bestDecrBits}
+	aligner.memo[key] = e
+	return e
+}
+
+// Returns augmented strings for the elements of s so as to maximize the sum
+// of scores over pairs of augmented strings.
+// The arguments to scoreFunc can be bytes from two strings or Gap.
+// gapSym is the symbol inserted into gaps in the augmented strings.
+func MultipleAlignment(s []string, scoreFunc func(int16, int16) int32,
+                       gapSym byte) (int32, []string) {
+	if len(s) > 32 {
+		panic("MultipleAlignment cannot operate on more than 32 strings.")
+	}
+
+	aligner := multAligner{s, make(map[string]multAlignEntry), scoreFunc}
+	indices := make([]int32, len(s))
+	for i := range s {
+		indices[i] = int32(len(s[i]))
+	}
+
+	entry := aligner.Get(indices)
+	score := entry.score
+
+	b := make([][]byte, len(s))
+	for entry.decrBits != 0 {
+		for i := range s {
+			if entry.decrBits & (1 << uint(i)) == 0 {
+				b[i] = append(b[i], gapSym)
+			} else {
+				b[i] = append(b[i], s[i][indices[i] - 1])
+				indices[i]--
+			}
+		}
+		entry = aligner.Get(indices)
+	}
+
+	a := []string{}
+	for i := range b {
+		reverseBytes(b[i])
+		a = append(a, string(b[i]))
+	}
+
+	return score, a
+}
+
 var _ = fmt.Println
