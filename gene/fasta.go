@@ -80,7 +80,11 @@ func ReadFasta(r io.Reader) (String, error) {
 }
 
 func ReadAllFasta(r io.Reader) ([]String, error) {
-	lr := lineReader{bufio.NewReader(r), 0}
+	br, ok := r.(*bufio.Reader)
+	if !ok {
+		br = bufio.NewReader(r)
+	}
+	lr := lineReader{br, 0}
 	a := []String{}
 	for {
 		s, err := lr.ReadFasta()
