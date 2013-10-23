@@ -3,38 +3,42 @@ package main
 import "bufio"
 import "fmt"
 import "os"
-import "rosalind/strings"
 import "rosalind/strings/suffix"
+import "sort"
 
-const minRepeatLen = 20
+const minRepeatLen = 2
 
 type SuffixTree suffix.Tree
+
+type byLength []string
 
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	s := scanner.Text()
 
-	tFwd := (*SuffixTree)(suffix.NewTree(s + "$"))
+	t := (*SuffixTree)(suffix.NewTree(s + "$"))
 
-	fwdMaximal := map[string]bool{}
-	tFwd.forEachMaximalRepeat(1, 0, func(m string) {
-		fwdMaximal[m] = true
+	repeats := []string{}
+	t.forEachMaximalRepeat(1, 0, func(m string) {
+		repeats = append(repeats, m)
 	})
+	sort.Sort(byLength(repeats))
 
-	b := []byte(s)
-	strings.ReverseBytes(b)
-	r := string(b)
-	tRev := (*SuffixTree)(suffix.NewTree(r + "$"))
-
-	tRev.forEachMaximalRepeat(1, 0, func(m string) {
-		b := []byte(m)
-		strings.ReverseBytes(b)
-		mr := string(b)
-		if _, ok := fwdMaximal[mr]; ok {
-			fmt.Println(mr)
+	maximal := []string{}
+Repeat:
+	for _, r := range repeats {
+		for _, m := range maximal {
+			if m[len(m) - len(r):] == r {
+				continue Repeat
+			}
 		}
-	})
+		maximal = append(maximal, r)
+	}
+
+	for _, m := range maximal {
+		fmt.Println(m)
+	}
 }
 
 func (t *SuffixTree) forEachMaximalRepeat(node int, prefixLen int, f func (string)) (maximal bool) {
@@ -53,4 +57,16 @@ func (t *SuffixTree) forEachMaximalRepeat(node int, prefixLen int, f func (strin
 		}
 	}
 	return
+}
+
+func (a byLength) Len() int {
+	return len(a)
+}
+
+func (a byLength) Less(i, j int) bool {
+	return len(a[i]) > len(a[j])
+}
+
+func (a byLength) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
 }
