@@ -6,7 +6,6 @@ type Edge struct {
 	Loc int
 	// The length of the substring
 	Len int
-	LeafCount int
 }
 
 type Tree struct {
@@ -17,7 +16,7 @@ type Tree struct {
 func NewTree(s string) *Tree {
 	t := &Tree{s, map[int]map[byte]*Edge{}}
 	t.Edges[1] = map[byte]*Edge{}
-	t.Edges[1][s[0]] = &Edge{2, 0, len(s), 0}
+	t.Edges[1][s[0]] = &Edge{2, 0, len(s)}
 	nextNode := 3
 
 	for i := 1; i < len(s); i++ {
@@ -28,7 +27,7 @@ Prefix:
 		for {
 			e, ok := t.Edges[node][suffix[0]]
 			if !ok {
-				t.Edges[node][suffix[0]] = &Edge{nextNode, sufLoc, len(suffix), 0}
+				t.Edges[node][suffix[0]] = &Edge{nextNode, sufLoc, len(suffix)}
 				nextNode++
 				break
 			}
@@ -52,10 +51,10 @@ Prefix:
 					w := nextNode
 					nextNode++
 
-					t.Edges[node][suffix[0]] = &Edge{v, e.Loc, j, 0}
+					t.Edges[node][suffix[0]] = &Edge{v, e.Loc, j}
 					t.Edges[v] = map[byte]*Edge{}
-					t.Edges[v][s[e.Loc + j]] = &Edge{e.Head, e.Loc + j, e.Len - j, 0}
-					t.Edges[v][suffix[j]] = &Edge{w, sufLoc + j, len(suffix) - j, 0}
+					t.Edges[v][s[e.Loc + j]] = &Edge{e.Head, e.Loc + j, e.Len - j}
+					t.Edges[v][suffix[j]] = &Edge{w, sufLoc + j, len(suffix) - j}
 					break Prefix
 				}
 			}
@@ -63,21 +62,5 @@ Prefix:
 		}
 	}
 
-	t.countLeaves(1)
-
 	return t
-}
-
-func (t *Tree) countLeaves(node int) int {
-	a, ok := t.Edges[node]
-	if !ok {
-		return 1
-	}
-
-	n := 0
-	for _, e := range a {
-		e.LeafCount = t.countLeaves(e.Head)
-		n += e.LeafCount
-	}
-	return n
 }

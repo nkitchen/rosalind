@@ -1,72 +1,93 @@
 package main
 
 import "bufio"
+import "flag"
 import "fmt"
 import "os"
 import "rosalind/strings/suffix"
-import "sort"
 
-const minRepeatLen = 2
+var minRepeatLen int
 
 type SuffixTree suffix.Tree
 
-type byLength []string
+var edgeLocs map[*suffix.Edge][]int
+var repeats map[string]map[int]bool
 
 func main() {
+	flag.IntVar(&minRepeatLen, "len", 20, "Minimum repeat length")
+	flag.Parse()
+
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	s := scanner.Text()
 
 	t := (*SuffixTree)(suffix.NewTree(s + "$"))
 
-	repeats := []string{}
-	t.forEachMaximalRepeat(1, 0, func(m string) {
-		repeats = append(repeats, m)
-	})
-	sort.Sort(byLength(repeats))
+	edgeLocs = map[*suffix.Edge][]int{}
+	t.findEdgeLocs(1)
 
-	maximal := []string{}
-Repeat:
-	for _, r := range repeats {
-		for _, m := range maximal {
-			if m[len(m) - len(r):] == r {
-				continue Repeat
+	repeats = map[string]map[int]bool{}
+	t.findRepeats(1, 0)
+
+	for rep, locs := range repeats {
+		pre := map[rune]bool{}
+		post := map[rune]bool{}
+		for i := range locs {
+			if i == 0 {
+				pre['^'] = true
+			} else {
+				c := rune(t.String[i - 1])
+				pre[c] = true
+			}
+
+			if i + len(rep) < len(s) {
+				c := rune(t.String[i + len(rep)])
+				post[c] = true
+			} else {
+				post['$'] = true
 			}
 		}
-		maximal = append(maximal, r)
-	}
-
-	for _, m := range maximal {
-		fmt.Println(m)
+		if len(pre) != 1 && len(post) != 1 {
+			fmt.Println(rep)
+		}
 	}
 }
 
-func (t *SuffixTree) forEachMaximalRepeat(node int, prefixLen int, f func (string)) (maximal bool) {
+func (t *SuffixTree) findEdgeLocs(node int) []int {
+	edges := t.Edges[node]
+	if len(edges) == 0 {
+		return []int{len(t.String)}
+	}
+
+	locs := []int{}
+	for _, e := range edges {
+		for _, i := range t.findEdgeLocs(e.Head) {
+			edgeLocs[e] = append(edgeLocs[e], i - e.Len)
+			locs = append(locs, i - e.Len)
+		}
+	}
+	return locs
+}
+
+func (t *SuffixTree) findRepeats(node int, prefixLen int) {
 	for _, e := range t.Edges[node] {
-		if e.LeafCount < 2 {
-			maximal = true
+		if len(edgeLocs[e]) < 2 {
 			continue
 		}
 
-		i := e.Loc - prefixLen
 		n := prefixLen + e.Len
+		t.findRepeats(e.Head, n)
+		if n < minRepeatLen {
+			continue
+		}
 
-		m := t.forEachMaximalRepeat(e.Head, n, f)
-		if m && n >= minRepeatLen {
-			f(t.String[i:i+n])
+		for _, i := range edgeLocs[e] {
+			repLoc := i - prefixLen
+			rep := t.String[repLoc:repLoc + n]
+			if repeats[rep] == nil {
+				repeats[rep] = map[int]bool{}
+			}
+			repeats[rep][repLoc] = true
 		}
 	}
-	return
-}
-
-func (a byLength) Len() int {
-	return len(a)
-}
-
-func (a byLength) Less(i, j int) bool {
-	return len(a[i]) > len(a[j])
-}
-
-func (a byLength) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
 }
