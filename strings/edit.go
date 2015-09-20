@@ -114,9 +114,14 @@ func Alignment(s, t string, gapSym byte) (string, string) {
 	for i >= 0 && j >= 0 {
 		switch {
 		case i > 0 && j > 0 && s[i] == t[j] && a[i][j] == a[i - 1][j - 1],
-		     i == 0 && j == 0:
+		     i == 0 && j == 0 && s[0] == t[0]:
 			sa = append(sa, s[i])
 			ta = append(ta, t[j])
+			i--
+			j--
+		case i == 0 && j == 0 && s[0] != t[0]:
+			sa = append(sa, gapSym, s[0])
+			ta = append(ta, t[0], gapSym)
 			i--
 			j--
 		case j > 0 && a[i][j] == a[i][j - 1] + 1:
