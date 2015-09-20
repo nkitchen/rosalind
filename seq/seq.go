@@ -5,11 +5,7 @@ import "sort"
 // Longest increasing subsequence of ints
 func LongestIncreasingSubseqInts(s []int) []int {
 	lisi := LongestIncreasingSubseqIndex(sort.IntSlice(s))
-	r := make([]int, len(lisi))
-	for i, ri := range lisi {
-		r[i] = s[ri]
-	}
-	return r
+	return IntsAt(s, lisi)
 }
 
 // Finds the longest increasing subsequence of data
@@ -120,4 +116,52 @@ func LongestIncreasingSubseqIndex(data sort.Interface) []int {
 
 	//r = s[rev(6, 4, 3, 1)] == [A, B, C, F]
 	//`
+}
+
+// IntsAt returns the elements of s at the indices in ii.
+func IntsAt(s []int, ii []int) []int {
+	a := make([]int, len(ii))
+	for j, i := range ii {
+		a[j] = s[i]
+	}
+	return a
+}
+
+func SlowLGIS(s []int) []int {
+	hasSucc := make([]bool, len(s))
+	preds := make([][]int, len(s))
+
+	// Find successors.
+	for i := len(s) - 1; i >= 0; i-- {
+		for j := i - 1; j >= 0; j-- {
+			if s[j] < s[i] {
+				preds[i] = append(preds[i], j)
+				hasSucc[j] = true
+			}
+		}
+	}
+
+	best := []int{}
+	for i := range s {
+		if hasSucc[i] {
+			continue
+		}
+		r := longestPath(i, preds)
+		if len(r) > len(best) {
+			best = r
+		}
+	}
+	return IntsAt(s, best)
+}
+
+func longestPath(i int, preds [][]int) []int {
+	best := []int(nil)
+	for _, j := range preds[i] {
+		p := longestPath(j, preds)
+		if len(p) > len(best) {
+			best = p
+		}
+	}
+	best = append(best, i)
+	return best
 }
