@@ -1,5 +1,8 @@
 package spectrum
 
+import "math"
+import "sort"
+
 // Computational mass spectrometry
 
 var MonoisotopicMass = map[byte]float64 {
@@ -23,4 +26,63 @@ var MonoisotopicMass = map[byte]float64 {
 	'V': 99.06841,
 	'W': 186.07931,
 	'Y': 163.06333,
+}
+
+const MassTolerance = 1e-4
+
+func approxEqual(a, b float64) bool {
+	return math.Abs(a - b) <= MassTolerance
+}
+
+// Returns a key in MonoisotopicMass whose value is mass,
+// plus or minus MassTolerance.
+// The bool return value indicates whether a match was found.
+func ResidueByMass(mass float64) (byte, bool) {
+	n := len(sortedByMass)
+	i := sort.Search(n, func(i int) bool {
+		return mass - MassTolerance <= sortedByMass[i].mass
+	})
+	if i < n && approxEqual(mass, sortedByMass[i].mass) {
+		return sortedByMass[i].residue, true
+	} else {
+		return 0, false
+	}
+}
+
+type massEntry struct {
+	residue byte
+	mass float64
+}
+
+var sortedByMass []massEntry
+
+func init() {
+	sortedByMass = make([]massEntry, 0, len(MonoisotopicMass))
+	for aa, m := range MonoisotopicMass {
+		sortedByMass = append(sortedByMass, massEntry{aa, m})
+	}
+
+	sort.Sort(massEntrySlice(sortedByMass))
+}
+
+type massEntrySlice []massEntry
+
+func (s massEntrySlice) Len() int {
+	return len(s)
+}
+
+func (s massEntrySlice) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s massEntrySlice) Less(i, j int) bool {
+	a := s[i]
+	b := s[j]
+	switch {
+	case a.mass < b.mass:
+		return true
+	case a.mass == b.mass && a.residue < b.residue:
+		return true
+	}
+	return false
 }
