@@ -1,48 +1,91 @@
 package spectrum
 
-import "math"
+import "errors"
+import "fmt"
+import "log"
+import "math/big"
 import "sort"
 
 // Computational mass spectrometry
 
-var MonoisotopicMass = map[byte]float64 {
-	'A': 71.03711,
-	'C': 103.00919,
-	'D': 115.02694,
-	'E': 129.04259,
-	'F': 147.06841,
-	'G': 57.02146,
-	'H': 137.05891,
-	'I': 113.08406,
-	'K': 128.09496,
-	'L': 113.08406,
-	'M': 131.04049,
-	'N': 114.04293,
-	'P': 97.05276,
-	'Q': 128.05858,
-	'R': 156.10111,
-	'S': 87.03203,
-	'T': 101.04768,
-	'V': 99.06841,
-	'W': 186.07931,
-	'Y': 163.06333,
+// A multiple of daltons
+type Mass int64
+
+const Dalton Mass = 1e5
+
+var ratDalton *big.Rat = big.NewRat(1e5, 1)
+
+// Parses a decimal string, e.g., 123.456.
+// Rounds to the nearest value of Mass.
+func ParseMass(s string) (Mass, error) {
+	var da big.Rat
+	_, ok := da.SetString(s)
+	if !ok {
+		return 0, errors.New("Parse error")
+	}
+
+    var m big.Rat
+	m.Mul(&da, ratDalton)
+
+	// Round.
+	m.Add(&m, big.NewRat(1, 2))
+	var r big.Int
+	r.Div(m.Num(), m.Denom())
+
+	return Mass(r.Int64()), nil
 }
 
-const MassTolerance = 1e-4
-
-func approxEqual(a, b float64) bool {
-	return math.Abs(a - b) <= MassTolerance
+func mustParseMass(s string) Mass {
+	m, err := ParseMass(s)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return m
 }
 
-// Returns a key in MonoisotopicMass whose value is mass,
-// plus or minus MassTolerance.
+func (m Mass) String() string {
+	return fmt.Sprintf("%.5f", float64(m) / float64(Dalton))
+}
+
+var MonoisotopicMass = map[byte]Mass {
+	'A': mustParseMass("71.03711"),
+	'C': mustParseMass("103.00919"),
+	'D': mustParseMass("115.02694"),
+	'E': mustParseMass("129.04259"),
+	'F': mustParseMass("147.06841"),
+	'G': mustParseMass("57.02146"),
+	'H': mustParseMass("137.05891"),
+	'I': mustParseMass("113.08406"),
+	'K': mustParseMass("128.09496"),
+	'L': mustParseMass("113.08406"),
+	'M': mustParseMass("131.04049"),
+	'N': mustParseMass("114.04293"),
+	'P': mustParseMass("97.05276"),
+	'Q': mustParseMass("128.05858"),
+	'R': mustParseMass("156.10111"),
+	'S': mustParseMass("87.03203"),
+	'T': mustParseMass("101.04768"),
+	'V': mustParseMass("99.06841"),
+	'W': mustParseMass("186.07931"),
+	'Y': mustParseMass("163.06333"),
+}
+
+const Tolerance Mass = 2
+
+func approxEqual(a, b Mass) bool {
+	d := a - b
+	return -Tolerance <= d && d <= Tolerance
+}
+
+// Returns a key in MonoisotopicMass whose value is m,
+// plus or minus Tolerance.
 // The bool return value indicates whether a match was found.
-func ResidueByMass(mass float64) (byte, bool) {
+func ResidueByMass(m Mass) (byte, bool) {
 	n := len(sortedByMass)
 	i := sort.Search(n, func(i int) bool {
-		return mass - MassTolerance <= sortedByMass[i].mass
+		return m - Tolerance <= sortedByMass[i].mass
 	})
-	if i < n && approxEqual(mass, sortedByMass[i].mass) {
+	if i < n && approxEqual(m, sortedByMass[i].mass) {
 		return sortedByMass[i].residue, true
 	} else {
 		return 0, false
@@ -51,7 +94,7 @@ func ResidueByMass(mass float64) (byte, bool) {
 
 type massEntry struct {
 	residue byte
-	mass float64
+	mass Mass
 }
 
 var sortedByMass []massEntry

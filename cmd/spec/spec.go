@@ -5,18 +5,16 @@ import "fmt"
 import "log"
 import "os"
 import "rosalind/spectrum"
-import "sort"
-import "strconv"
 
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Split(bufio.ScanWords)
 
-	spec := []float64{}
+	spec := []spectrum.Mass{}
 
 	for scanner.Scan() {
 		t := scanner.Text()
-		w, err := strconv.ParseFloat(t, 64)
+		w, err := spectrum.ParseMass(t)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -24,12 +22,10 @@ func main() {
 		spec = append(spec, w)
 	}
 
-	sort.Float64Slice(spec).Sort()
-
 	fmt.Println(ProteinFromSpectrum(spec))
 }
 
-func ProteinFromSpectrum(spec []float64) string {
+func ProteinFromSpectrum(spec []spectrum.Mass) string {
 	p := []byte{}
 	for i := 1; i < len(spec); i++ {
 		d := spec[i] - spec[i - 1]
