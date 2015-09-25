@@ -70,7 +70,7 @@ var MonoisotopicMass = map[byte]Mass {
 	'Y': mustParseMass("163.06333"),
 }
 
-const Tolerance Mass = 2
+const Tolerance Mass = 10
 
 func approxEqual(a, b Mass) bool {
 	d := a - b
