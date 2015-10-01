@@ -323,4 +323,54 @@ func MultipleAlignment(s []string, scoreFunc func(int16, int16) int32,
 	return score, a
 }
 
-var _ = fmt.Println
+func NumOptimalAlignments(s, t string, p int) int {
+	type entry struct {
+		dist int // optimal edit distance
+		num int // how many optimal alignments, modulo p
+	}
+
+	// a[m][n] records the optimal alignments of s[:m] and t[:n].
+	a := make([][]entry, len(s) + 1)
+	for i := range a {
+		a[i] = make([]entry, len(t) + 1)
+	}
+
+	a[0][0] = entry{dist: 0, num: 1}
+	for m := 1; m <= len(s); m++ {
+		a[m][0] = entry{dist: m, num: 1}
+	}
+	for n := 1; n <= len(t); n++ {
+		a[0][n] = entry{dist: n, num: 1}
+	}
+
+	for m := 1; m <= len(s); m++ {
+		for n := 1; n <= len(t); n++ {
+			best := a[m-1][n-1]
+			if s[m-1] != t[n-1] {
+				best.dist += 1
+			}
+
+            b := [2]entry{a[m-1][n], a[m][n-1]}
+            for _, e := range b {
+				k := e.dist
+				if k + 1 < best.dist {
+					best = e
+					best.dist += 1
+				} else if k + 1 == best.dist {
+					best.num += e.num
+					best.num %= p
+				}
+			}
+
+			a[m][n] = best
+		}
+	}
+	//for i := range a {
+	//	for j := range a[i] {
+	//		fmt.Printf("%d:%d\t", a[i][j].dist, a[i][j].num)
+	//	}
+	//	fmt.Println()
+	//}
+
+	return a[len(s)][len(t)].num
+}
