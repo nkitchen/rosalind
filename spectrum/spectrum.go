@@ -2,8 +2,10 @@ package spectrum
 
 import "fmt"
 import "log"
+import "math"
 import "sort"
 import "strconv"
+import "os"
 
 // Computational mass spectrometry
 
@@ -15,18 +17,21 @@ func dprintf(format string, a ...interface{}) {
 	}
 }
 
-type Mass float64
+// Molecular mass in centidaltons
+type Mass int64
 
 const Precision = 1e-2
 
-const Dalton Mass = 1
+const Dalton Mass = 1 / Precision
 
 // Parses a decimal string, e.g., 123.456.
 func ParseMass(s string) (Mass, error) {
-	m, err := strconv.ParseFloat(s, 64)
+	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
 		return 0, err
 	}
+
+    m := math.Floor(f / Precision + 0.5)
 	return Mass(m), nil
 }
 
@@ -39,7 +44,7 @@ func mustParseMass(s string) Mass {
 }
 
 func (m Mass) String() string {
-	return fmt.Sprintf("%.5f", float64(m)/float64(Dalton))
+	return fmt.Sprintf("%.2f", float64(m)/float64(Dalton))
 }
 
 var MonoisotopicMass = map[byte]Mass{
@@ -66,8 +71,7 @@ var MonoisotopicMass = map[byte]Mass{
 }
 
 func ApproxEqual(a, b Mass) bool {
-	d := a - b
-	return -Precision < d && d < Precision
+	return a == b
 }
 
 // Returns a key in MonoisotopicMass whose value is m,
@@ -76,7 +80,7 @@ func ApproxEqual(a, b Mass) bool {
 func ResidueByMass(m Mass) (byte, bool) {
 	n := len(sortedByMass)
 	i := sort.Search(n, func(i int) bool {
-		return m-Precision < sortedByMass[i].mass
+		return m - 1 < sortedByMass[i].mass
 	})
 	if i < n && ApproxEqual(m, sortedByMass[i].mass) {
 		return sortedByMass[i].residue, true
@@ -127,51 +131,81 @@ type Spectrum struct {
 	masses []Mass
 	// Maps the mass of each b-ion to that of its y-ion, and vice versa.
 	complement map[Mass]Mass
+	// The protein string from which the spectrum was generated (if known)
+	SourceProtein string
 }
 
 func New(masses []Mass) (*Spectrum, error) {
-	n := len(masses)
-
-	if n%2 == 1 {
-		return nil, fmt.Errorf("Odd number of masses")
-	}
-
 	var spec Spectrum
-	spec.masses = make([]Mass, n)
+	spec.masses = make([]Mass, len(masses))
 	copy(spec.masses, masses)
 	sort.Sort(MassSlice(spec.masses))
-
-	spec.complement = map[Mass]Mass{}
-	var parent Mass
-	for i := 0; 2*i < n; i++ {
-		a := spec.masses[i]
-		b := spec.masses[n-1-i]
-		s := a + b
-		if i == 0 {
-			parent = s
-		} else {
-			if !ApproxEqual(parent, s) {
-				err := fmt.Errorf("Sum of masses does not match parent: "+
-					"%v + %v vs. %v",
-					a, b, parent)
-				return nil, err
-			}
-		}
-		spec.complement[a] = b
-		spec.complement[b] = a
-	}
 
 	return &spec, nil
 }
 
+func FromProtein(pr string) (*Spectrum, error) {
+	total := Mass(0)
+	for i := 0; i < len(pr); i++ {
+		m, ok := MonoisotopicMass[pr[i]]
+		if !ok {
+			return nil, fmt.Errorf("Invalid amino acid: %c", pr[i])
+		}
+		total += m
+	}
+
+	masses := []Mass{Mass(0), total}
+	for i := 0; i < len(pr); i++ {
+		a := MonoisotopicMass[pr[i]]
+		masses = append(masses, a, total - a)
+	}
+
+	spec, err := New(masses)
+	if err == nil {
+		spec.SourceProtein = pr
+	}
+	return spec, err
+}
+
 // Returns a protein string matching the mass spectrum
 // and a bool indicating success.
-func (spec *Spectrum) Protein() (string, bool) {
+func (spec *Spectrum) Protein() (string, error) {
+	n := len(spec.masses)
+	if n%2 == 1 {
+		return "", fmt.Errorf("Odd number of masses")
+	}
+
+	if spec.complement == nil {
+		spec.complement = map[Mass]Mass{}
+		var parent Mass
+		for i := 0; 2*i < n; i++ {
+			a := spec.masses[i]
+			b := spec.masses[n-1-i]
+			s := a + b
+			if i == 0 {
+				parent = s
+			} else {
+				if !ApproxEqual(parent, s) {
+					err := fmt.Errorf("Sum of masses does not match parent: "+
+						"%v + %v vs. %v",
+						a, b, parent)
+					return "", err
+				}
+			}
+			spec.complement[a] = b
+			spec.complement[b] = a
+		}
+	}
+
 	visited := map[Mass]bool{}
 	visited[spec.masses[0]] = true
 	visited[spec.masses[len(spec.masses) - 1]] = true
 	p, found := spec.findProtein(spec.masses[0], visited, nil)
-	return string(p), found
+	if found {
+		return string(p), nil
+	} else {
+		return "", fmt.Errorf("Not found")
+	}
 }
 
 func (spec *Spectrum) findProtein(
@@ -206,6 +240,82 @@ func (spec *Spectrum) findProtein(
 	}
 
 	return nil, false
+}
+
+type Convolution struct {
+	elem map[Mass]int
+}
+
+var ConvUnit float64 = 40
+
+// Returns the spectral convolution of spA and spB
+// (Minkowski difference spA - spB).
+// Rounds masses to the nearest ConvUnit daltons.
+func (spA *Spectrum) Convolution(spB *Spectrum) *Convolution {
+	conv := Convolution{map[Mass]int{}}
+	for _, a := range spA.masses {
+		for _, b := range spB.masses {
+			d := a - b
+			da := float64(d) / float64(Dalton) / ConvUnit
+			r := Mass(math.Floor(da + 0.5) * ConvUnit) * Dalton
+			conv.elem[r] = 1 + conv.elem[r]
+		}
+	}
+	return &conv
+}
+
+type multisetElem struct {
+	mass Mass
+	num int
+}
+
+type massMultiset []multisetElem
+
+func (s massMultiset) Len() int {
+	return len(s)
+}
+
+func (s massMultiset) Less(i, j int) bool {
+	return s[i].mass < s[j].mass
+}
+
+func (s massMultiset) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+var convOut = 1
+
+// Returns the maximum multiplicity of conv and the corresponding element.
+func (conv *Convolution) Max() (Mass, int) {
+	ms := []multisetElem{}
+
+	best := -1
+	which := Mass(0)
+	for m, k := range conv.elem {
+		if k > best {
+			best = k
+			which = m
+		}
+		ms = append(ms, multisetElem{mass: m, num: k})
+	}
+	if best == -1 {
+		log.Fatal("No positive multiplicity")
+	}
+
+    sort.Sort(massMultiset(ms))
+	_ = ms
+	_ = os.Create
+	//f, err := os.Create(fmt.Sprintf("conv%d.dat", convOut))
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//convOut++
+	//for i := 0; i < len(ms); i++ {
+	//	fmt.Fprintf(f, "%s %d\n", ms[i].mass, ms[i].num)
+	//}
+	//f.Close()
+
+	return which, best
 }
 
 type MassSlice []Mass
