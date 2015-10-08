@@ -1,6 +1,5 @@
 package main
 
-import "flag"
 import "fmt"
 import "io"
 import "log"
@@ -8,10 +7,6 @@ import "os"
 import "rosalind/spectrum"
 
 func main() {
-	flag.Float64Var(&spectrum.ConvUnit, "convUnit", 1.0,
-	                "Precision of spectral convolution")
-	flag.Parse()
-
 	prots, masses, err := readInput(os.Stdin)
 	if err != nil {
 		log.Fatal(err)
@@ -34,12 +29,13 @@ func main() {
 	best := 0
 	which := ""
 	for _, dbSpec := range db {
-		pr := dbSpec.SourceProtein
+		pr := dbSpec.Source
 		conv := spec.Convolution(dbSpec)
 		m, k := conv.Max()
-		fmt.Println(pr)
-		fmt.Println(k, m)
-		if k >= best {
+		_ = m
+		//fmt.Println(pr)
+		//fmt.Println(k, m)
+		if k > best {
 			best = k
 			which = pr
 		}

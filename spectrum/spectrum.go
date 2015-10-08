@@ -5,7 +5,6 @@ import "log"
 import "math"
 import "sort"
 import "strconv"
-import "os"
 
 // Computational mass spectrometry
 
@@ -17,12 +16,12 @@ func dprintf(format string, a ...interface{}) {
 	}
 }
 
-// Molecular mass in centidaltons
+// Molecular mass in fractions of a dalton (Precision)
 type Mass int64
 
-const Precision = 1e-2
+const Precision = 1e-4
 
-const Dalton Mass = 1 / Precision
+const Dalton Mass = 1e4
 
 // Parses a decimal string, e.g., 123.456.
 func ParseMass(s string) (Mass, error) {
@@ -44,7 +43,7 @@ func mustParseMass(s string) Mass {
 }
 
 func (m Mass) String() string {
-	return fmt.Sprintf("%.2f", float64(m)/float64(Dalton))
+	return fmt.Sprintf("%.4f", float64(m)/float64(Dalton))
 }
 
 var MonoisotopicMass = map[byte]Mass{
@@ -131,8 +130,8 @@ type Spectrum struct {
 	masses []Mass
 	// Maps the mass of each b-ion to that of its y-ion, and vice versa.
 	complement map[Mass]Mass
-	// The protein string from which the spectrum was generated (if known)
-	SourceProtein string
+	// What the spectrum came from (e.g., the protein string)
+	Source string
 }
 
 func New(masses []Mass) (*Spectrum, error) {
@@ -145,24 +144,28 @@ func New(masses []Mass) (*Spectrum, error) {
 }
 
 func FromProtein(pr string) (*Spectrum, error) {
-	total := Mass(0)
+	masses := []Mass{}
+
+	prefix := Mass(0)
 	for i := 0; i < len(pr); i++ {
 		m, ok := MonoisotopicMass[pr[i]]
 		if !ok {
 			return nil, fmt.Errorf("Invalid amino acid: %c", pr[i])
 		}
-		total += m
+		prefix += m
+		masses = append(masses, prefix)
 	}
 
-	masses := []Mass{Mass(0), total}
-	for i := 0; i < len(pr); i++ {
-		a := MonoisotopicMass[pr[i]]
-		masses = append(masses, a, total - a)
+    suffix := Mass(0)
+	for i := len(pr) - 1; i > 0; i-- {
+		m := MonoisotopicMass[pr[i]]
+		suffix += m
+		masses = append(masses, suffix)
 	}
 
 	spec, err := New(masses)
 	if err == nil {
-		spec.SourceProtein = pr
+		spec.Source = pr
 	}
 	return spec, err
 }
@@ -246,18 +249,18 @@ type Convolution struct {
 	elem map[Mass]int
 }
 
-var ConvUnit float64 = 40
+var ConvUnit float64 = 1e-4
 
 // Returns the spectral convolution of spA and spB
 // (Minkowski difference spA - spB).
-// Rounds masses to the nearest ConvUnit daltons.
+// Rounds masses to the nearest Precision daltons.
 func (spA *Spectrum) Convolution(spB *Spectrum) *Convolution {
 	conv := Convolution{map[Mass]int{}}
 	for _, a := range spA.masses {
 		for _, b := range spB.masses {
 			d := a - b
-			da := float64(d) / float64(Dalton) / ConvUnit
-			r := Mass(math.Floor(da + 0.5) * ConvUnit) * Dalton
+			da := float64(d) / float64(Dalton) / Precision
+			r := Mass(math.Floor(da + 0.5) * Precision) * Dalton
 			conv.elem[r] = 1 + conv.elem[r]
 		}
 	}
@@ -269,26 +272,8 @@ type multisetElem struct {
 	num int
 }
 
-type massMultiset []multisetElem
-
-func (s massMultiset) Len() int {
-	return len(s)
-}
-
-func (s massMultiset) Less(i, j int) bool {
-	return s[i].mass < s[j].mass
-}
-
-func (s massMultiset) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-var convOut = 1
-
 // Returns the maximum multiplicity of conv and the corresponding element.
 func (conv *Convolution) Max() (Mass, int) {
-	ms := []multisetElem{}
-
 	best := -1
 	which := Mass(0)
 	for m, k := range conv.elem {
@@ -296,24 +281,10 @@ func (conv *Convolution) Max() (Mass, int) {
 			best = k
 			which = m
 		}
-		ms = append(ms, multisetElem{mass: m, num: k})
 	}
 	if best == -1 {
 		log.Fatal("No positive multiplicity")
 	}
-
-    sort.Sort(massMultiset(ms))
-	_ = ms
-	_ = os.Create
-	//f, err := os.Create(fmt.Sprintf("conv%d.dat", convOut))
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//convOut++
-	//for i := 0; i < len(ms); i++ {
-	//	fmt.Fprintf(f, "%s %d\n", ms[i].mass, ms[i].num)
-	//}
-	//f.Close()
 
 	return which, best
 }
