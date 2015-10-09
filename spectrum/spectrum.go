@@ -69,8 +69,11 @@ var MonoisotopicMass = map[byte]Mass{
 	'Y': mustParseMass("163.06333"),
 }
 
+var minMassDiff Mass = -1
+
 func ApproxEqual(a, b Mass) bool {
-	return a == b
+	d := a - b
+	return -minMassDiff < d && d < minMassDiff
 }
 
 // Returns a key in MonoisotopicMass whose value is m,
@@ -79,13 +82,17 @@ func ApproxEqual(a, b Mass) bool {
 func ResidueByMass(m Mass) (byte, bool) {
 	n := len(sortedByMass)
 	i := sort.Search(n, func(i int) bool {
-		return m - 1 < sortedByMass[i].mass
+		return m - minMassDiff < sortedByMass[i].mass
 	})
-	if i < n && ApproxEqual(m, sortedByMass[i].mass) {
-		return sortedByMass[i].residue, true
-	} else {
-		return 0, false
+	for ; i < n; i++ {
+		if sortedByMass[i].mass - m > minMassDiff {
+			break
+		}
+		if ApproxEqual(m, sortedByMass[i].mass) {
+			return sortedByMass[i].residue, true
+		}
 	}
+	return 0, false
 }
 
 type massEntry struct {
@@ -102,6 +109,20 @@ func init() {
 	}
 
 	sort.Sort(massEntrySlice(sortedByMass))
+
+    for i := 0; i < len(sortedByMass) - 1; i++ {
+		a := sortedByMass[i]
+		b := sortedByMass[i+1]
+		d := b.mass - a.mass
+		if minMassDiff < 0 && d > 0 ||
+		   0 < d && d < minMassDiff {
+			minMassDiff = d
+		}
+	}
+	dprintf("minMassDiff=%s\n", minMassDiff)
+	if minMassDiff < 0 {
+		panic("No difference between residue masses")
+	}
 }
 
 type massEntrySlice []massEntry
@@ -134,13 +155,13 @@ type Spectrum struct {
 	Source string
 }
 
-func New(masses []Mass) (*Spectrum, error) {
+func New(masses []Mass) *Spectrum {
 	var spec Spectrum
 	spec.masses = make([]Mass, len(masses))
 	copy(spec.masses, masses)
 	sort.Sort(MassSlice(spec.masses))
 
-	return &spec, nil
+	return &spec
 }
 
 func FromProtein(pr string) (*Spectrum, error) {
@@ -163,11 +184,9 @@ func FromProtein(pr string) (*Spectrum, error) {
 		masses = append(masses, suffix)
 	}
 
-	spec, err := New(masses)
-	if err == nil {
-		spec.Source = pr
-	}
-	return spec, err
+	spec := New(masses)
+	spec.Source = pr
+	return spec, nil
 }
 
 // Returns a protein string matching the mass spectrum
@@ -287,6 +306,64 @@ func (conv *Convolution) Max() (Mass, int) {
 	}
 
 	return which, best
+}
+
+type edge struct {
+	residue byte
+	head Mass
+}
+
+type graph map[Mass][]edge
+
+// Returns the longest protein string that matches the spectrum.
+func (spec *Spectrum) FindProtein() string {
+	g := makeGraph(spec)
+
+    var best []byte
+	for _, m := range spec.masses {
+		visited := map[Mass]bool{m: true}
+		p := g.search(m, visited, nil)
+		if len(p) > len(best) {
+			best = p
+		}
+	}
+	return string(best)
+}
+
+func makeGraph(spec *Spectrum) graph {
+	g := map[Mass][]edge{}
+	for i, u := range spec.masses {
+		for _, v := range spec.masses[i+1:] {
+			d := v - u
+			r, ok := ResidueByMass(d)
+			if ok {
+				g[u] = append(g[u], edge{r, v})
+			}
+		}
+	}
+	return g
+}
+
+func (g graph) search(u Mass, visited map[Mass]bool, prefix []byte) []byte {
+	// visited[m] == true if m has already been used to get a residue
+	// in prefix.
+
+    dprintf("%v %v %v\n", u, visited, string(prefix))
+
+    best := prefix
+    for _, e := range g[u] {
+		v := e.head
+		if visited[v] {
+			continue
+		}
+		visited[v] = true
+		p := g.search(v, visited, append(prefix, e.residue))
+		if len(p) > len(best) {
+			best = p
+		}
+		delete(visited, v)
+	}
+	return best
 }
 
 type MassSlice []Mass
