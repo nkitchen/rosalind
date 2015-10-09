@@ -310,59 +310,61 @@ func (conv *Convolution) Max() (Mass, int) {
 
 type edge struct {
 	residue byte
-	head Mass
+	tail Mass
 }
 
-type graph map[Mass][]edge
+type graph struct {
+	preds map[Mass][]edge
+	longestPath map[Mass]string
+}
 
 // Returns the longest protein string that matches the spectrum.
 func (spec *Spectrum) FindProtein() string {
 	g := makeGraph(spec)
 
-    var best []byte
+    var best string
 	for _, m := range spec.masses {
-		visited := map[Mass]bool{m: true}
-		p := g.search(m, visited, nil)
+		p := g.LongestPathTo(m)
 		if len(p) > len(best) {
 			best = p
 		}
 	}
-	return string(best)
+	return best
 }
 
 func makeGraph(spec *Spectrum) graph {
-	g := map[Mass][]edge{}
+	g := graph{}
+	g.preds = map[Mass][]edge{}
 	for i, u := range spec.masses {
 		for _, v := range spec.masses[i+1:] {
 			d := v - u
 			r, ok := ResidueByMass(d)
 			if ok {
-				g[u] = append(g[u], edge{r, v})
+				e := edge{r, u}
+				g.preds[v] = append(g.preds[v], e)
 			}
 		}
 	}
+
+	g.longestPath = map[Mass]string{}
+
 	return g
 }
 
-func (g graph) search(u Mass, visited map[Mass]bool, prefix []byte) []byte {
-	// visited[m] == true if m has already been used to get a residue
-	// in prefix.
-
-    dprintf("%v %v %v\n", u, visited, string(prefix))
-
-    best := prefix
-    for _, e := range g[u] {
-		v := e.head
-		if visited[v] {
-			continue
-		}
-		visited[v] = true
-		p := g.search(v, visited, append(prefix, e.residue))
-		if len(p) > len(best) {
-			best = p
-		}
-		delete(visited, v)
+func (g graph) LongestPathTo(v Mass) string {
+	if p, ok := g.longestPath[v]; ok {
+		return p
 	}
+
+    best := ""
+    for _, e := range g.preds[v] {
+		u := e.tail
+		p := g.LongestPathTo(u)
+		if len(p) + 1 > len(best) {
+			best = p + string(e.residue)
+		}
+	}
+	g.longestPath[v] = best
 	return best
 }
 
