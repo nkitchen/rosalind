@@ -6,7 +6,7 @@ import "io"
 import "math"
 
 type Node struct {
-	Label string
+	Label    string
 	Children []Edge
 }
 
@@ -41,16 +41,16 @@ func printSubtree(t Edge, prefix string) {
 
 	switch {
 	case len(t.Children) == 0:
-	    fmt.Println()
+		fmt.Println()
 	case len(t.Children) == 1:
-	    fmt.Print("---")
-	    printSubtree(t.Children[0], prefix + " " + labelSpace + "    ")
-    default:
+		fmt.Print("---")
+		printSubtree(t.Children[0], prefix+" "+labelSpace+"    ")
+	default:
 		p := prefix + " " + labelSpace + "  | "
-	    fmt.Print("-+-")
-	    printSubtree(t.Children[0], p)
+		fmt.Print("-+-")
+		printSubtree(t.Children[0], p)
 		var i int
-		for i = 1; i < len(t.Children) - 1; i++ {
+		for i = 1; i < len(t.Children)-1; i++ {
 			fmt.Print(prefix, " ", labelSpace, "  +-")
 			printSubtree(t.Children[i], p)
 		}
@@ -90,9 +90,9 @@ func (t *Node) Distance(a, b string) int {
 		p, q = q, p
 	}
 
-	for len(q) > 0 && p[len(p) - 1] == q[len(q) - 1] {
-		p = p[:len(p) - 1]
-		q = q[:len(q) - 1]
+	for len(q) > 0 && p[len(p)-1] == q[len(q)-1] {
+		p = p[:len(p)-1]
+		q = q[:len(q)-1]
 	}
 
 	return len(q) + len(p)
@@ -113,9 +113,9 @@ func (t *Node) WeightedDistance(a, b string) float64 {
 		p, q = q, p
 	}
 
-	for len(q) > 0 && p[len(p) - 1] == q[len(q) - 1] {
-		p = p[:len(p) - 1]
-		q = q[:len(q) - 1]
+	for len(q) > 0 && p[len(p)-1] == q[len(q)-1] {
+		p = p[:len(p)-1]
+		q = q[:len(q)-1]
 	}
 
 	d := float64(0)
@@ -133,7 +133,7 @@ func (t *Node) String() string {
 	t.WriteNewick(b)
 	s := b.String()
 	// Omit the final semicolon.
-	return s[:len(s) - 1]
+	return s[:len(s)-1]
 }
 
 // Edge returns a zero-weight edge for a node.
@@ -196,7 +196,7 @@ func (t *Node) SubtreeLeaves(leafIndices map[string]int) map[*Node][]int {
 }
 
 func collectLeaves(t *Node, leafIndices map[string]int,
-                   collected []int, result map[*Node][]int) int {
+	collected []int, result map[*Node][]int) int {
 	n := 0
 	i, ok := leafIndices[t.Label]
 	if ok {
@@ -276,4 +276,72 @@ func NormalUnrootedBinary(t *Node) *Node {
 // but with t's other leaves omitted.
 func CollapseUnrootedBinary(t *Node, leavesToKeep map[string]bool) *Node {
 	return NormalUnrootedBinary(Collapse(t, leavesToKeep))
+}
+
+// DoUnrooted calls function f on each unrooted binary tree
+// with the given leaves.
+func DoUnrootedBinary(leaves []string, f func(t *Node)) {
+	if len(leaves) < 3 {
+		panic("Too few leaves")
+	}
+
+	// Make a copy whose order we can change.
+	a := make([]string, len(leaves))
+	copy(a, leaves)
+	leaves = a
+
+	doUnorderedSubtrees(leaves[1:], func(u *Node) {
+		// Keep the first leaf as the root.
+		t := &Node{leaves[0], []Edge{u.Edge()}}
+		f(t)
+	})
+}
+
+// doUnorderedSubtrees calls function f on each binary tree
+// containing leaves that can appear as a subtree of an
+// unrooted binary tree.
+func doUnorderedSubtrees(leaves []string, f func(t *Node)) {
+	n := len(leaves)
+	if n == 1 {
+		f(&Node{leaves[0], nil})
+		return
+	}
+
+	for k := 1; k < len(leaves); k++ {
+		// To make sure that each pair of combinations appears in only one
+		// order, we constrain the first leaf to appear only in the left
+		// combination.
+		_ = `
+
+		`
+		doCombinations(leaves[1:], k-1, func() {
+			doUnorderedSubtrees(leaves[:k], func(u *Node) {
+				doUnorderedSubtrees(leaves[k:], func(v *Node) {
+					t := &Node{"", []Edge{u.Edge(), v.Edge()}}
+					f(t)
+				})
+			})
+		})
+	}
+}
+
+// doCombinations reorders s to place each combination of k elements
+// at s[0:k] and calls function f for each combination.
+func doCombinations(s []string, k int, f func()) {
+	n := len(s)
+	if n < k {
+		return
+	}
+	if k == 0 || n == k {
+		f()
+		return
+	}
+
+	// All combinations including s[0]...
+	doCombinations(s[1:], k-1, f)
+
+	// ...all combinations excluding s[0]
+	s[0], s[n-1] = s[n-1], s[0]
+	doCombinations(s[:n-1], k, f)
+	s[n-1], s[0] = s[0], s[n-1]
 }
